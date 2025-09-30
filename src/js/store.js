@@ -7,14 +7,14 @@ import { ui } from './ui.js';
 class Store {
     constructor() {
         this.state = {
-            prompts:,
-            categories:,
+            prompts: [],
+            categories: [],
             currentCategoryId: 'all',
             selectedPromptId: null,
             viewMode: 'list', // 'list' | 'sort'
             isLoading: false,
         };
-        this.listeners =; // 상태 변경을 구독할 함수들의 배열
+        this.listeners = []; // 상태 변경을 구독할 함수들의 배열
     }
 
     // 현재 상태를 반환

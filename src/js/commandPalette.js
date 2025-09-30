@@ -10,8 +10,8 @@ class CommandPalette {
             list: document.getElementById('command-palette-list'),
         };
         this.store = null;
-        this.commands =;
-        this.filteredCommands =;
+        this.commands = [];
+        this.filteredCommands = [];
         this.selectedIndex = 0;
     }
 
@@ -32,7 +32,23 @@ class CommandPalette {
     // 커맨드 목록을 동적으로 생성
     generateCommands() {
         const { categories } = this.store.getState();
-        this.commands =;
+        this.commands = [
+            {
+                label: "새 프롬프트 생성",
+                category: "액션",
+                action: () => this.store.createNewPrompt(),
+            },
+            {
+                label: "정리 모드 시작",
+                category: "액션",
+                action: () => this.store.enterSortMode(),
+            },
+            ...categories.map(cat => ({
+                label: `${cat.name} 카테고리로 이동`,
+                category: "탐색",
+                action: () => this.store.selectCategory(cat.id),
+            })),
+        ];
     }
     
     // 입력값에 따라 커맨드를 필터링하고 렌더링

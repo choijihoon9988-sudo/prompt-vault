@@ -77,9 +77,7 @@ class UI {
         this.elements.categoryNav.querySelectorAll('li').forEach(li => {
             li.addEventListener('click', (e) => {
                 const id = e.currentTarget.dataset.id;
-                this.store.selectCategory(id === 'all' |
-
-| id === 'unsorted'? id : parseInt(id));
+                this.store.selectCategory(id === 'all' || id === 'unsorted'? id : parseInt(id));
             });
         });
 
@@ -99,7 +97,7 @@ class UI {
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
 
         // 현재 선택된 카테고리에 따라 프롬프트 필터링
-        let filteredPrompts =;
+        let filteredPrompts = [];
         let categoryTitle = "";
         if (currentCategoryId === 'all') {
             filteredPrompts = prompts;
@@ -241,7 +239,7 @@ class UI {
             return;
         }
 
-        const currentPrompt = unsortedPrompts;
+        const currentPrompt = unsortedPrompts[0];
         // AI가 추천할 카테고리 시뮬레이션 (랜덤 선택)
         const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
 
@@ -256,28 +254,4 @@ class UI {
                         <button class="category-suggestion-btn" data-cat-id="new">직접 입력...</button>
                     </div>
                 </div>
-                <button id="exit-sort-mode-btn">정리 끝내기</button>
-            </div>
-        `;
-
-        // 정리 모드 이벤트 리스너 설정
-        document.querySelectorAll('.category-suggestion-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const categoryId = e.target.dataset.catId;
-                if (categoryId === 'new') {
-                    // 새 카테고리 입력 로직 (MVP에서는 미구현)
-                    alert('새 카테고리 입력 기능은 다음 버전에서 지원됩니다.');
-                } else {
-                    this.store.assignCategoryToPrompt(currentPrompt.id, parseInt(categoryId));
-                }
-            });
-        });
-        document.getElementById('exit-sort-mode-btn').addEventListener('click', () => this.store.exitSortMode());
-    }
-
-    showError(message) {
-        alert(message);
-    }
-}
-
-export const ui = new UI();
+                <button id="exit-sort-mode-btn">정리 끝내기</button

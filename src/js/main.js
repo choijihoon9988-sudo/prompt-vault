@@ -32,8 +32,8 @@ class App {
 
         // 4. 중앙 상태 저장소(Store)에 초기 상태 설정
         store.setState({
-            prompts: prompts ||,
-            categories: categories ||,
+            prompts: prompts || [],
+            categories: categories || [],
             currentCategoryId: 'all', // 'all', 'unsorted', 또는 카테고리 ID
             selectedPromptId: null,
             viewMode: 'list', // 'list' 또는 'sort'
@@ -54,23 +54,17 @@ class App {
     setupGlobalShortcuts() {
         document.addEventListener('keydown', (e) => {
             // Ctrl+K 또는 Cmd+K로 커맨드 팔레트 열기
-            if ((e.ctrlKey |
-
-| e.metaKey) && e.key === 'k') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 commandPalette.toggle();
             }
             // Ctrl+N 또는 Cmd+N으로 새 프롬프트 생성
-            if ((e.ctrlKey |
-
-| e.metaKey) && e.key === 'n') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
                 e.preventDefault();
                 store.createNewPrompt();
             }
             // Ctrl+S 또는 Cmd+S로 정리 모드 시작
-            if ((e.ctrlKey |
-
-| e.metaKey) && e.key === 's') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 store.enterSortMode();
             }

@@ -19,8 +19,6 @@ export function sanitizeHTML(str) {
  */
 export function getFirstLine(text) {
     if (!text) return "제목 없음";
-    const firstLine = text.split('\n').replace(/^#+\s*/, '').trim();
-    return firstLine.length > 50? firstLine.substring(0, 50) + '...' : firstLine |
-
-| "제목 없음";
+    const firstLine = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+    return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine || "제목 없음";
 }
