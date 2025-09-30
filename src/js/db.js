@@ -1,6 +1,6 @@
 // IndexedDB를 추상화하여 사용하기 쉽게 만드는 데이터베이스 모듈
 const DB_NAME = 'PromptVaultDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // <<-- 버전 1에서 2로 변경
 const PROMPTS_STORE = 'prompts';
 const CATEGORIES_STORE = 'categories';
 
@@ -41,7 +41,7 @@ function init() {
                 const categoryStore = db.createObjectStore(CATEGORIES_STORE, { keyPath: 'id', autoIncrement: true });
                 categoryStore.createIndex('name', 'name', { unique: true });
 
-                // 기본 카테고리 추가 (보다 안정적인 방식으로 수정)
+                // 기본 카테고리 추가 (트랜잭션 완료를 기다릴 필요 없음)
                 categoryStore.add({ name: '기획' });
                 categoryStore.add({ name: '마케팅' });
                 categoryStore.add({ name: '개발' });
@@ -56,10 +56,14 @@ function performTransaction(storeName, mode, action) {
         if (!dbInstance) {
             return reject("Database not initialized");
         }
-        const transaction = dbInstance.transaction(storeName, mode);
-        const store = transaction.objectStore(storeName);
-        action(store, resolve, reject);
-        transaction.onerror = (event) => reject(event.target.error);
+        try {
+            const transaction = dbInstance.transaction(storeName, mode);
+            const store = transaction.objectStore(storeName);
+            action(store, resolve, reject);
+            transaction.onerror = (event) => reject(event.target.error);
+        } catch (error) {
+            reject(error);
+        }
     });
 }
 
@@ -105,3 +109,4 @@ export const db = {
         request.onsuccess = () => resolve(request.result);
     }),
 };
+
