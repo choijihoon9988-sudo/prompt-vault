@@ -254,4 +254,28 @@ class UI {
                         <button class="category-suggestion-btn" data-cat-id="new">직접 입력...</button>
                     </div>
                 </div>
-                <button id="exit-sort-mode-btn">정리 끝내기</button
+                <button id="exit-sort-mode-btn">정리 끝내기</button>
+            </div>`;
+        
+        // 동적으로 생성된 버튼에 이벤트 리스너 추가
+        document.getElementById('exit-sort-mode-btn').addEventListener('click', () => this.store.exitSortMode());
+        
+        document.querySelectorAll('.category-suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const categoryId = e.currentTarget.dataset.catId;
+                if (categoryId === 'new') {
+                    // 새 카테고리 입력 로직 (추후 구현)
+                    const newCategoryName = prompt("새 카테고리 이름을 입력하세요:");
+                    if (newCategoryName) {
+                        // 스토어에 새 카테고리 추가 및 프롬프트에 할당하는 액션 필요
+                        alert(`'${newCategoryName}' 카테고리가 생성되어 할당되었습니다. (구현 필요)`);
+                    }
+                } else {
+                    this.store.assignCategoryToPrompt(currentPrompt.id, parseInt(categoryId));
+                }
+            });
+        });
+    }
+}
+
+export const ui = new UI();

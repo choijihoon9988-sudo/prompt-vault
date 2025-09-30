@@ -27,6 +27,15 @@ class CommandPalette {
         });
         this.elements.input.addEventListener('input', () => this.filterAndRender());
         this.elements.input.addEventListener('keydown', this.handleKeyDown.bind(this));
+
+        // 이벤트 위임을 사용하여 list 전체에 한 번만 이벤트 리스너를 추가
+        this.elements.list.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (li && li.dataset.index) {
+                const index = parseInt(li.dataset.index);
+                this.executeCommand(index);
+            }
+        });
     }
 
     // 커맨드 목록을 동적으로 생성
@@ -71,14 +80,6 @@ class CommandPalette {
                 <span class="command-category">${cmd.category}</span>
             </li>
         `).join('');
-        
-        // 클릭 이벤트 위임
-        this.elements.list.querySelectorAll('li').forEach(li => {
-            li.addEventListener('click', (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                this.executeCommand(index);
-            });
-        });
     }
 
     handleKeyDown(e) {
