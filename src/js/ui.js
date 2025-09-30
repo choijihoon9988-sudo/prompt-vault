@@ -10,11 +10,11 @@ class UI {
             appTitle: document.getElementById('app-title'),
             favicon: document.querySelector("link[rel*='icon']"),
             categoryNav: document.getElementById('category-nav'),
+            promptList: document.getElementById('prompt-list'),
+            promptDetailContainer: document.getElementById('prompt-detail-container'),
             unsortedCountBadge: document.getElementById('unsorted-count-badge'),
             currentCategoryTitle: document.getElementById('current-category-title'),
             promptCount: document.getElementById('prompt-count'),
-            promptList: document.getElementById('prompt-list'),
-            promptDetailContainer: document.getElementById('prompt-detail-container'),
             newPromptBtn: document.getElementById('new-prompt-btn'),
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
@@ -39,10 +39,55 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // 이벤트 리스너 설정
+    // 이벤트 리스너를 한 곳에서 설정 (이벤트 위임 활용)
     setupEventListeners() {
+        // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
         this.elements.sortModeBtn.addEventListener('click', () => this.store.enterSortMode());
+
+        // 카테고리 목록 클릭 (이벤트 위임)
+        this.elements.categoryNav.addEventListener('click', (e) => {
+            const li = e.target.closest('li[data-id]');
+            if (li) {
+                const id = li.dataset.id;
+                this.store.selectCategory(id === 'all' || id === 'unsorted' ? id : parseInt(id));
+            }
+        });
+
+        // 프롬프트 목록 및 정렬 모드 클릭 (이벤트 위임)
+        this.elements.promptList.addEventListener('click', (e) => {
+            const promptCard = e.target.closest('.prompt-card[data-id]');
+            if (promptCard) {
+                this.store.selectPrompt(parseInt(promptCard.dataset.id));
+                return;
+            }
+            
+            const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
+            if (suggestionBtn) {
+                this.handleSortModeAction(suggestionBtn.dataset.catId);
+                return;
+            }
+
+            if (e.target.closest('#exit-sort-mode-btn')) {
+                this.store.exitSortMode();
+            }
+        });
+
+        // 프롬프트 상세 뷰 액션 버튼 클릭 (이벤트 위임)
+        this.elements.promptDetailContainer.addEventListener('click', (e) => {
+            const targetId = e.target.closest('button')?.id;
+            switch(targetId) {
+                case 'generate-ai-draft-btn':
+                    this.store.generateAIDraft();
+                    break;
+                case 'delete-prompt-btn':
+                    this.store.deleteSelectedPrompt();
+                    break;
+                case 'confirm-ai-draft-btn':
+                    this.store.confirmAIDraft();
+                    break;
+            }
+        });
     }
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
@@ -52,36 +97,30 @@ class UI {
         this.renderSidebar(state);
         
         if (state.viewMode === 'sort') {
+            this.elements.promptDetailContainer.innerHTML = '';
+            this.elements.promptDetailContainer.style.display = 'none';
             this.renderSortModeView(state);
         } else {
+            this.elements.promptDetailContainer.style.display = 'block';
             this.renderListView(state);
         }
     }
 
     // 사이드바 렌더링
     renderSidebar({ categories, prompts, currentCategoryId }) {
-        const unsortedCount = prompts.filter(p =>!p.categoryId).length;
+        const unsortedCount = prompts.filter(p => !p.categoryId).length;
         
         let categoryHtml = '<ul>';
-        categoryHtml += `<li data-id="all" class="${currentCategoryId === 'all'? 'active' : ''}">모든 프롬프트</li>`;
-        categoryHtml += `<li data-id="unsorted" class="${currentCategoryId === 'unsorted'? 'active' : ''}">미분류</li>`;
+        categoryHtml += `<li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>`;
+        categoryHtml += `<li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>`;
         
         categories.forEach(cat => {
-            categoryHtml += `<li data-id="${cat.id}" class="${currentCategoryId === cat.id? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`;
+            categoryHtml += `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`;
         });
         categoryHtml += '</ul>';
         
         this.elements.categoryNav.innerHTML = categoryHtml;
         
-        // 카테고리 클릭 이벤트 위임
-        this.elements.categoryNav.querySelectorAll('li').forEach(li => {
-            li.addEventListener('click', (e) => {
-                const id = e.currentTarget.dataset.id;
-                this.store.selectCategory(id === 'all' || id === 'unsorted'? id : parseInt(id));
-            });
-        });
-
-        // 미분류 뱃지 업데이트
         this.elements.unsortedCountBadge.textContent = unsortedCount;
         if (unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS) {
             this.elements.sortModeBtn.classList.add('highlight');
@@ -92,48 +131,36 @@ class UI {
 
     // 일반 리스트 뷰 렌더링
     renderListView(state) {
-        this.elements.promptDetailContainer.style.display = 'block';
-        
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
 
-        // 현재 선택된 카테고리에 따라 프롬프트 필터링
         let filteredPrompts = [];
         let categoryTitle = "";
         if (currentCategoryId === 'all') {
             filteredPrompts = prompts;
             categoryTitle = "모든 프롬프트";
         } else if (currentCategoryId === 'unsorted') {
-            filteredPrompts = prompts.filter(p =>!p.categoryId);
+            filteredPrompts = prompts.filter(p => !p.categoryId);
             categoryTitle = "미분류";
         } else {
             filteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
             const cat = categories.find(c => c.id === currentCategoryId);
-            categoryTitle = cat? cat.name : "알 수 없는 카테고리";
+            categoryTitle = cat ? cat.name : "알 수 없는 카테고리";
         }
 
         this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
         this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
         
-        // 프롬프트 목록 렌더링
         if (filteredPrompts.length === 0) {
-            this.elements.promptList.innerHTML = `<p class="placeholder">${APP_CONFIG.UI_TEXTS.EMPTY_PROMPTS_MESSAGE}</p>`;
+            this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">${APP_CONFIG.UI_TEXTS.EMPTY_PROMPTS_MESSAGE}</p>`;
         } else {
             this.elements.promptList.innerHTML = filteredPrompts.map(p => `
-                <div class="prompt-card ${p.id === selectedPromptId? 'active' : ''}" data-id="${p.id}">
+                <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
                     <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
                     <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
                 </div>
             `).join('');
         }
 
-        // 프롬프트 카드 클릭 이벤트 위임
-        this.elements.promptList.querySelectorAll('.prompt-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                this.store.selectPrompt(parseInt(e.currentTarget.dataset.id));
-            });
-        });
-
-        // 상세 뷰 렌더링
         this.renderDetailView(state);
     }
 
@@ -150,19 +177,9 @@ class UI {
             return;
         }
 
-        const isEditing = false; // MVP에서는 편집 모드를 구현하지 않음
-        let contentHtml = '';
-
-        if (isEditing) {
-            contentHtml = `<textarea class="prompt-content-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>`;
-        } else {
-            if (APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING) {
-                // marked.js를 사용하여 마크다운 파싱
-                contentHtml = `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`;
-            } else {
-                contentHtml = `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
-            }
-        }
+        const contentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+            ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
+            : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
 
         this.elements.promptDetailContainer.innerHTML = `
             <div id="detail-view">
@@ -174,29 +191,16 @@ class UI {
                     </div>
                 </div>
                 ${contentHtml}
-                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent? 'hidden' : ''}">
-                    ${this.renderAIDraft(selectedPrompt)}
+                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !this.isDraftLoading ? 'hidden' : ''}">
+                    ${this.isDraftLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
                 </div>
             </div>`;
         
-        // 구문 강조 적용
         if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
-            this.elements.promptDetailContainer.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
-        }
-        
-        // 상세 뷰 내 버튼 이벤트 리스너 설정
-        document.getElementById('generate-ai-draft-btn').addEventListener('click', () => this.store.generateAIDraft());
-        document.getElementById('delete-prompt-btn').addEventListener('click', () => this.store.deleteSelectedPrompt());
-        
-        const confirmBtn = document.getElementById('confirm-ai-draft-btn');
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', () => this.store.confirmAIDraft());
+            this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
     }
     
-    // AI 초안 영역 렌더링
     renderAIDraft(prompt) {
         if (!prompt.aiDraftContent) return '';
         return `
@@ -210,24 +214,27 @@ class UI {
         `;
     }
 
-    // AI 초안 로딩 UI 표시
-    showAIDraftLoading() {
-        const container = document.getElementById('ai-draft-container');
-        if (container) {
-            container.classList.remove('hidden');
-            container.innerHTML = `
-                <div class="ai-draft-header">
-                    <div class="loading-spinner"></div> AI가 초안을 생성하는 중...
-                </div>
-            `;
-        }
+    renderAIDraftLoading() {
+        this.isDraftLoading = true;
+        return `
+            <div class="ai-draft-header">
+                <div class="loading-spinner"></div> AI가 초안을 생성하는 중...
+            </div>
+        `;
     }
 
-    // 정리 모드 뷰 렌더링
+    showAIDraftLoading() {
+        this.isDraftLoading = true;
+        this.render(); // Re-render to show loading state
+    }
+
+    hideAIDraftLoading() {
+        this.isDraftLoading = false;
+        // The main render loop will handle hiding it on next state update
+    }
+
     renderSortModeView({ prompts, categories }) {
-        this.elements.promptDetailContainer.style.display = 'none';
-        
-        const unsortedPrompts = prompts.filter(p =>!p.categoryId);
+        const unsortedPrompts = prompts.filter(p => !p.categoryId);
         
         if (unsortedPrompts.length === 0) {
             this.elements.promptList.innerHTML = `
@@ -235,12 +242,10 @@ class UI {
                     <h2>${APP_CONFIG.UI_TEXTS.EMPTY_SORT_MODE_MESSAGE}</h2>
                     <button id="exit-sort-mode-btn">돌아가기</button>
                 </div>`;
-            document.getElementById('exit-sort-mode-btn').addEventListener('click', () => this.store.exitSortMode());
             return;
         }
 
         const currentPrompt = unsortedPrompts[0];
-        // AI가 추천할 카테고리 시뮬레이션 (랜덤 선택)
         const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
 
         this.elements.promptList.innerHTML = `
@@ -256,25 +261,23 @@ class UI {
                 </div>
                 <button id="exit-sort-mode-btn">정리 끝내기</button>
             </div>`;
-        
-        // 동적으로 생성된 버튼에 이벤트 리스너 추가
-        document.getElementById('exit-sort-mode-btn').addEventListener('click', () => this.store.exitSortMode());
-        
-        document.querySelectorAll('.category-suggestion-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const categoryId = e.currentTarget.dataset.catId;
-                if (categoryId === 'new') {
-                    // 새 카테고리 입력 로직 (추후 구현)
-                    const newCategoryName = prompt("새 카테고리 이름을 입력하세요:");
-                    if (newCategoryName) {
-                        // 스토어에 새 카테고리 추가 및 프롬프트에 할당하는 액션 필요
-                        alert(`'${newCategoryName}' 카테고리가 생성되어 할당되었습니다. (구현 필요)`);
-                    }
-                } else {
-                    this.store.assignCategoryToPrompt(currentPrompt.id, parseInt(categoryId));
-                }
-            });
-        });
+    }
+
+    handleSortModeAction(categoryId) {
+        const unsortedPrompts = this.store.getState().prompts.filter(p => !p.categoryId);
+        if (unsortedPrompts.length === 0) return;
+        const currentPrompt = unsortedPrompts[0];
+
+        if (categoryId === 'new') {
+            const newCategoryName = prompt("새 카테고리 이름을 입력하세요:");
+            if (newCategoryName) {
+                // This requires a new action in the store to handle category creation and assignment
+                alert(`'${newCategoryName}' 카테고리가 생성되어 할당되었습니다. (스토어 액션 구현 필요)`);
+                // e.g., this.store.createNewCategoryAndAssign(newCategoryName, currentPrompt.id);
+            }
+        } else {
+            this.store.assignCategoryToPrompt(currentPrompt.id, parseInt(categoryId));
+        }
     }
 }
 

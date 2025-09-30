@@ -20,7 +20,8 @@ class App {
             await db.init();
         } catch (error) {
             console.error("Database initialization failed:", error);
-            ui.showError("데이터베이스를 초기화할 수 없습니다. 앱을 재시작해주세요.");
+            // ui.showError는 ui.js에 없는 함수이므로 주석 처리합니다.
+            // ui.showError("데이터베이스를 초기화할 수 없습니다. 앱을 재시작해주세요.");
             return;
         }
 
@@ -43,6 +44,15 @@ class App {
         // 스토어를 주입하여 상태 변경 시 UI가 자동으로 업데이트되도록 함
         ui.init(store);
         commandPalette.init(store);
+
+        // --- 추가된 부분 시작 ---
+        // Store의 상태 변경을 구독하고 UI 업데이트를 처리합니다.
+        store.subscribe(state => {
+            if (state.isLoading) {
+                ui.showAIDraftLoading();
+            }
+        });
+        // --- 추가된 부분 끝 ---
 
         // 6. 전역 키보드 단축키 설정
         this.setupGlobalShortcuts();

@@ -1,6 +1,6 @@
 import { db } from './db.js';
 import { services } from './services.js';
-import { ui } from './ui.js';
+// import { ui } from './ui.js'; // 순환 참조 문제를 해결하기 위해 이 줄을 제거합니다.
 
 // 애플리케이션의 모든 상태를 중앙에서 관리하는 'Store'
 // UI는 이 Store의 상태가 변경될 때만 업데이트됨 (단방향 데이터 흐름)
@@ -89,12 +89,13 @@ class Store {
 
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
-            ui.showAIDraftLoading(); // 로딩 UI 표시
+            this.setState({ isLoading: true }); // --- 수정: 로딩 상태를 true로 설정
+            // ui.showAIDraftLoading(); // --- 제거: UI 직접 제어 코드 삭제
             const draft = await services.getAIStrategistDraft(prompt.content);
             const updatedPrompt = {...prompt, aiDraftContent: draft };
             await db.updatePrompt(updatedPrompt);
             const allPrompts = await db.getAllPrompts();
-            this.setState({ prompts: allPrompts });
+            this.setState({ prompts: allPrompts, isLoading: false }); // --- 수정: 로딩 상태를 false로 설정
         }
     }
 
