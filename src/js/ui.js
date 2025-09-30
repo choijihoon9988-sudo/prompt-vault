@@ -165,7 +165,8 @@ class UI {
     }
 
     // 상세 뷰 렌더링
-    renderDetailView({ prompts, selectedPromptId }) {
+    renderDetailView(state) {
+        const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
 
         if (!selectedPrompt) {
@@ -186,13 +187,15 @@ class UI {
                 <div class="detail-header">
                     <small>최종 수정: ${new Date(selectedPrompt.updatedAt).toLocaleString()}</small>
                     <div class="detail-header-actions">
-                        <button id="generate-ai-draft-btn">✨ AI 초안 생성</button>
+                        <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>
+                            ${isLoading ? '생성 중...' : '✨ AI 초안 생성'}
+                        </button>
                         <button id="delete-prompt-btn">삭제</button>
                     </div>
                 </div>
                 ${contentHtml}
-                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !this.isDraftLoading ? 'hidden' : ''}">
-                    ${this.isDraftLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
+                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !isLoading ? 'hidden' : ''}">
+                    ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
                 </div>
             </div>`;
         
@@ -215,22 +218,11 @@ class UI {
     }
 
     renderAIDraftLoading() {
-        this.isDraftLoading = true;
         return `
             <div class="ai-draft-header">
                 <div class="loading-spinner"></div> AI가 초안을 생성하는 중...
             </div>
         `;
-    }
-
-    showAIDraftLoading() {
-        this.isDraftLoading = true;
-        this.render(); // Re-render to show loading state
-    }
-
-    hideAIDraftLoading() {
-        this.isDraftLoading = false;
-        // The main render loop will handle hiding it on next state update
     }
 
     renderSortModeView({ prompts, categories }) {
@@ -282,3 +274,4 @@ class UI {
 }
 
 export const ui = new UI();
+

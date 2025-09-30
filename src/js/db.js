@@ -41,13 +41,10 @@ function init() {
                 const categoryStore = db.createObjectStore(CATEGORIES_STORE, { keyPath: 'id', autoIncrement: true });
                 categoryStore.createIndex('name', 'name', { unique: true });
 
-                // 기본 카테고리 추가
-                categoryStore.transaction.oncomplete = () => {
-                    const categoriesObjectStore = db.transaction(CATEGORIES_STORE, 'readwrite').objectStore(CATEGORIES_STORE);
-                    categoriesObjectStore.add({ name: '기획' });
-                    categoriesObjectStore.add({ name: '마케팅' });
-                    categoriesObjectStore.add({ name: '개발' });
-                };
+                // 기본 카테고리 추가 (보다 안정적인 방식으로 수정)
+                categoryStore.add({ name: '기획' });
+                categoryStore.add({ name: '마케팅' });
+                categoryStore.add({ name: '개발' });
             }
         };
     });

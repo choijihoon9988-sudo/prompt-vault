@@ -38,21 +38,13 @@ class App {
             currentCategoryId: 'all', // 'all', 'unsorted', 또는 카테고리 ID
             selectedPromptId: null,
             viewMode: 'list', // 'list' 또는 'sort'
+            isLoading: false,
         });
 
         // 5. UI 및 커맨드 팔레트 모듈 초기화
         // 스토어를 주입하여 상태 변경 시 UI가 자동으로 업데이트되도록 함
         ui.init(store);
         commandPalette.init(store);
-
-        // --- 추가된 부분 시작 ---
-        // Store의 상태 변경을 구독하고 UI 업데이트를 처리합니다.
-        store.subscribe(state => {
-            if (state.isLoading) {
-                ui.showAIDraftLoading();
-            }
-        });
-        // --- 추가된 부분 끝 ---
 
         // 6. 전역 키보드 단축키 설정
         this.setupGlobalShortcuts();
