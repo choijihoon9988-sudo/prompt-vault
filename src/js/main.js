@@ -60,11 +60,13 @@ class App {
                 e.preventDefault();
                 commandPalette.toggle();
             }
-            // Ctrl+N 또는 Cmd+N으로 새 프롬프트 생성
-            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-                e.preventDefault();
-                store.createNewPrompt();
-            }
+            // [수정] '새 프롬프트 생성' 단축키 로직은 UI와 더 관련이 깊으므로,
+            // main.js의 역할(초기화 및 조율)에 집중하기 위해 이 로직을 제거합니다.
+            // 추후 ui.js 등에서 관리하는 것이 더 적합한 구조입니다.
+            // if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            //     e.preventDefault();
+            //     store.createNewPrompt();
+            // }
             // Ctrl+S 또는 Cmd+S로 정리 모드 시작
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
@@ -85,4 +87,3 @@ document.addEventListener('DOMContentLoaded', () => {
     const app = new App();
     app.init();
 });
-

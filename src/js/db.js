@@ -1,6 +1,6 @@
 // IndexedDB를 추상화하여 사용하기 쉽게 만드는 데이터베이스 모듈
 const DB_NAME = 'PromptVaultDB';
-const DB_VERSION = 3; // <<-- [수정] 신규 필드(title, summary) 추가를 위한 버전 업그레이드
+const DB_VERSION = 4; // <<-- [수정] 안정적인 스키마 마이그레이션을 위해 버전 업그레이드
 const PROMPTS_STORE = 'prompts';
 const CATEGORIES_STORE = 'categories';
 
@@ -28,23 +28,27 @@ function init() {
         // 데이터베이스 버전이 변경되거나 처음 생성될 때 호출
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            
-            // 'prompts' 객체 저장소 생성
-            if (!db.objectStoreNames.contains(PROMPTS_STORE)) {
-                const promptStore = db.createObjectStore(PROMPTS_STORE, { keyPath: 'id', autoIncrement: true });
-                promptStore.createIndex('categoryId', 'categoryId', { unique: false });
-                promptStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+            const transaction = event.target.transaction;
+
+            // [수정] v3 스키마 변경(title, summary 추가)에 따른 마이그레이션 로직
+            // 기존 저장소가 있다면 삭제하고 새로 만들어 데이터 구조의 일관성을 보장합니다.
+            if (db.objectStoreNames.contains(PROMPTS_STORE)) {
+                db.deleteObjectStore(PROMPTS_STORE);
             }
+            const promptStore = db.createObjectStore(PROMPTS_STORE, { keyPath: 'id', autoIncrement: true });
+            promptStore.createIndex('categoryId', 'categoryId', { unique: false });
+            promptStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+
 
             // 'categories' 객체 저장소 생성
             if (!db.objectStoreNames.contains(CATEGORIES_STORE)) {
                 const categoryStore = db.createObjectStore(CATEGORIES_STORE, { keyPath: 'id', autoIncrement: true });
                 categoryStore.createIndex('name', 'name', { unique: true });
-
-                // 기본 카테고리 추가 (트랜잭션 완료를 기다릴 필요 없음)
-                categoryStore.add({ name: '기획' });
-                categoryStore.add({ name: '마케팅' });
-                categoryStore.add({ name: '개발' });
+                
+                // [수정] onupgradeneeded 내에서 트랜잭션을 통해 안전하게 기본 데이터 추가
+                transaction.objectStore(CATEGORIES_STORE).add({ name: '기획' });
+                transaction.objectStore(CATEGORIES_STORE).add({ name: '마케팅' });
+                transaction.objectStore(CATEGORIES_STORE).add({ name: '개발' });
             }
         };
     });
@@ -109,4 +113,3 @@ export const db = {
         request.onsuccess = () => resolve(request.result);
     }),
 };
-
