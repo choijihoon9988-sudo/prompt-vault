@@ -22,52 +22,49 @@ export const APP_CONFIG = {
 
   // --- AI 서비스 설정 ---
   AI_SERVICE: {
-    // 여기에 당신의 Google AI Studio에서 발급받은 API 키를 입력하세요.
-    // 중요: 이 키를 외부에 노출하지 마세요.
-    GEMINI_API_KEY: "AIzaSyDSIRzDsbonDZwuDB6RRmYYy-vR2Cqupmg",
-
-    // '전략가 AI'가 초안을 생성하는 데 걸리는 시간을 밀리초(ms) 단위로 설정합니다.
-    // (실제 API를 사용하므로 이 값은 더 이상 사용되지 않지만, 만약을 위해 남겨둡니다.)
-    SIMULATED_API_LATENCY_MS: 800,
-
-    // AI가 추천하는 카테고리의 개수를 설정합니다.
-    SUGGESTED_CATEGORIES_COUNT: 3,
+    // [중요] 여기에 당신의 Google AI Studio Gemini API 키를 입력하세요.
+    API_KEY: "AIzaSyDSIRzDsbonDZwuDB6RRmYYy-vR2Cqupmg", 
+    
+    // API 호출에 사용할 모델 이름
+    MODEL_NAME: "gemini-2.5-pro",
 
     // AI가 생성하는 프롬프트 초안의 기본 구조입니다.
     // {userInput} 부분은 사용자의 실제 입력으로 대체됩니다.
     STRATEGIST_AI_PROMPT_TEMPLATE: `
-### 🎯 목표
-{userInput} 문제를 해결하기 위한 명확하고 실행 가능한 결과물 도출
+### 🎯 분석 및 재구성 목표
+아래의 사용자 원본 아이디어를 분석하여, AI의 성능을 극한으로 끌어낼 수 있는 명확하고 실행 가능한 '전략 프롬프트'로 재창조한다.
 
 ### 👤 역할 부여
-당신은 해당 분야 최고의 전문가인 [전문가 역할 삽입]입니다.
+너는 세계 최고의 프롬프트 엔지니어이자, 특정 분야의 도메인 지식을 즉시 학습하는 AI 전략가다.
 
-### 📝 핵심 지시사항
-1.  문제의 핵심을 파악하고, 가장 중요한 변수들을 고려하여 답변을 생성해주세요.
-2.  결과물은 [원하는 결과물 형식: 보고서, 코드, 표 등] 형식으로 정리해주세요.
-3.  [추가적인 제약 조건이나 요구사항 삽입]
+### 📝 핵심 재구성 원칙
+1.  **의도 파악:** 사용자의 원본 아이디어에서 핵심 목표(Goal)와 원하는 결과물(Output)이 무엇인지 명확하게 정의한다.
+2.  **구조화:** '역할 부여', '상황(Context)', '명확한 지시사항', '결과물 형식', '제약 조건' 등 구조화된 프롬프트 형식으로 재구성한다.
+3.  **고도화:** 사용자가 미처 생각하지 못했을 추가적인 관점이나 변수를 포함하여 프롬프트의 가치를 극대화한다. "이렇게까지 생각 못했는데?" 라는 반응을 유도해야 한다.
 
-### 🚫 주의사항
--   일반적인 정보 나열을 피하고, 구체적인 인사이트를 담아주세요.
--   [피해야 할 답변 스타일이나 내용 삽입]
-    `,
+### 🚫 절대 금지사항
+-   단순히 문장을 다듬거나 내용을 요약해서는 안 된다.
+-   일반적이거나 추상적인 표현을 사용하지 말고, 구체적이고 측정 가능한 지시사항을 사용한다.
+
+---
+### 💡 사용자 원본 아이디어
+{userInput}
+---
+
+### ✨ 재창조된 전략 프롬프트
+`,
   },
 
   // --- 기능 플래그 ---
   FEATURES: {
-    // true로 설정하면, 프롬프트 내용에 마크다운 문법이 적용되어 렌더링됩니다.
     ENABLE_MARKDOWN_PARSING: true,
-    // true로 설정하면, 마크다운의 코드 블록에 구문 강조(Syntax Highlighting)가 적용됩니다.
     ENABLE_SYNTAX_HIGHLIGHTING: true,
-    // true로 설정하면, 정리되지 않은 프롬프트가 있을 때 주기적으로 알림을 표시합니다. (MVP에서는 UI 힌트로 구현)
     ENABLE_SORT_MODE_NOTIFICATIONS: true,
   },
 
   // --- 테마 및 스타일 설정 ---
   THEME: {
-    // 앱의 기본 테마를 'dark' 또는 'light'로 설정할 수 있습니다.
     DEFAULT_THEME: 'dark',
-    // 앱의 주요 색상을 설정합니다.
     PRIMARY_COLOR: "#4F46E5", // Indigo
     FONT_FAMILY: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
   },
