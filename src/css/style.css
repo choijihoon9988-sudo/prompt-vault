@@ -66,9 +66,9 @@ body {
     overflow: hidden;
 }
 
-/* [수정] category-list-container와 prompt-list-container 레이아웃 수정 */
-.category-list-container {
-    padding-bottom: 0.5rem;
+/* [수정] category-section이 prompt-list-container와 분리되도록 수정 */
+.category-section {
+    padding: 0 0.5rem 0.5rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
 }
@@ -157,22 +157,59 @@ body {
 }
 
 
-/* [삭제] 기존 .category-tabs 관련 스타일 제거 */
-
-/* [신규] 세로 카테고리 목록 스타일 */
-.category-list-header {
-    font-size: 1.1rem;
+/* [신규] 섹션 헤더 스타일 */
+.section-header {
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 1rem 1.5rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 1rem 0.5rem;
 }
-.category-list {
+
+.section-header-collapsible {
     display: flex;
-    flex-direction: column;
-    padding: 0 0.5rem; /* 좌우 패딩 */
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 1rem;
+    border-radius: 6px;
+    transition: var(--transition-fast);
 }
-.category-list .category-item {
+.section-header-collapsible:hover {
+    background-color: var(--bg-primary);
+}
+.section-header-collapsible h2 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.toggle-icon {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: transform var(--transition-medium);
+}
+.toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+/* [신규] 카테고리 목록 컨테이너 (접기/펴기) */
+.collapsible-list-container {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+}
+.collapsible-list-container.expanded {
+    max-height: 500px; /* 충분한 높이 */
+}
+
+
+/* [수정] 카테고리 아이템 스타일 */
+.category-item {
     width: 100%;
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1rem;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 500;
@@ -185,16 +222,15 @@ body {
     justify-content: space-between;
     align-items: center;
 }
-.category-list .category-item:hover {
+.category-item:hover {
     background-color: var(--bg-primary);
     color: var(--text-primary);
 }
-.category-list .category-item.active {
+.category-item.active {
     background-color: var(--bg-tertiary);
     font-weight: 600;
     color: var(--text-primary);
 }
-
 
 /* 프롬프트 목록 */
 .list-header {
@@ -223,10 +259,10 @@ body {
     margin-bottom: 0.5rem;
 }
 .prompt-card:hover {
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-tertiary); /* 호버 색상 변경 */
 }
 .prompt-card.active {
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-tertiary); /* 활성 색상 변경 */
     border-color: var(--primary-color);
     box-shadow: 0 0 0 1px var(--primary-color);
 }

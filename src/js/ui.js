@@ -9,7 +9,13 @@ class UI {
         this.elements = {
             appTitle: document.getElementById('app-title'),
             favicon: document.querySelector("link[rel*='icon']"),
-            categoryList: document.getElementById('category-list'),
+            // [수정] 새로운 HTML 구조에 맞게 요소 캐싱 업데이트
+            vaultList: document.getElementById('vault-list'),
+            categoriesHeader: document.getElementById('categories-header'),
+            categoryToggleIcon: document.getElementById('category-toggle-icon'),
+            userCategoryListContainer: document.getElementById('user-category-list-container'),
+            userCategoryList: document.getElementById('user-category-list'),
+            categorySection: document.getElementById('category-section'),
             promptListContainer: document.getElementById('prompt-list-container'),
             promptList: document.getElementById('prompt-list'),
             promptDetailContainer: document.getElementById('prompt-detail-container'),
@@ -22,6 +28,7 @@ class UI {
         this.store = null;
         this.editingPromptId = null;
         this.clickTimer = null; // 더블클릭과 싱글클릭을 구분하기 위한 타이머
+        this.isCategoryListExpanded = false; // [신규] 카테고리 목록 확장 상태
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -42,13 +49,17 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // [최종 수정] 이벤트 리스너 로직을 통합하여 안정성 확보
+    // [수정] 이벤트 리스너 로직 수정 및 추가
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
         this.elements.sortModeBtn.addEventListener('click', () => this.store.enterSortMode());
+        
+        // [신규] Categories 헤더 클릭 시 토글 기능
+        this.elements.categoriesHeader.addEventListener('click', () => this.toggleCategoryList());
 
-        this.elements.categoryList.addEventListener('click', (e) => {
+        // [수정] 이벤트 위임을 categorySection 전체에 적용
+        this.elements.categorySection.addEventListener('click', (e) => {
             const button = e.target.closest('button[data-id]');
             if (button) this.store.selectCategory(button.dataset.id === 'all' || button.dataset.id === 'unsorted' ? button.dataset.id : parseInt(button.dataset.id));
         });
@@ -62,11 +73,9 @@ class UI {
             }
         });
         
-        // [핵심 수정] 더블클릭 리스너를 제거하고 클릭 리스너에서 모든 것을 처리
         this.elements.promptDetailContainer.removeEventListener('dblclick', this.handleDetailDoubleClick); // 기존 리스너 제거
         this.elements.promptDetailContainer.addEventListener('click', this.handleDetailClick.bind(this));
         
-        // contenteditable 요소의 blur 이벤트(포커스 아웃) 시 저장
         this.elements.promptDetailContainer.addEventListener('blur', (e) => {
             const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
             if (contentView) {
@@ -78,7 +87,14 @@ class UI {
         }, true);
     }
     
-    // [핵심] 상세 보기 영역의 모든 클릭 이벤트를 처리하는 단일 함수
+    // [신규] 카테고리 목록 토글 함수
+    toggleCategoryList() {
+        this.isCategoryListExpanded = !this.isCategoryListExpanded;
+        this.elements.userCategoryListContainer.classList.toggle('expanded', this.isCategoryListExpanded);
+        this.elements.categoryToggleIcon.classList.toggle('expanded', this.isCategoryListExpanded);
+        this.elements.categoryToggleIcon.textContent = this.isCategoryListExpanded ? '▲' : '▼';
+    }
+    
     handleDetailClick(e) {
         // 버튼 클릭 처리
         const button = e.target.closest('button');
@@ -91,28 +107,22 @@ class UI {
             return;
         }
 
-        // 프롬프트 내용(contentView) 클릭 처리
         const contentView = e.target.closest('.original-panel .prompt-content-view');
         if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
-            // 타이머가 이미 설정되어 있다면, 두 번째 클릭(더블클릭)으로 간주
             if (this.clickTimer) {
                 clearTimeout(this.clickTimer);
                 this.clickTimer = null;
-                // 더블클릭 액션: 수정 모드로 전환
                 contentView.setAttribute('contenteditable', 'true');
                 contentView.focus();
             } else {
-                // 첫 번째 클릭: 타이머 설정
                 this.clickTimer = setTimeout(() => {
-                    // 싱글클릭 액션: 복사
                     this.handleSingleClickOnDetailView();
                     this.clickTimer = null;
-                }, 200); // 200ms 이내에 다른 클릭이 없으면 싱글클릭으로 간주
+                }, 200);
             }
         }
     }
 
-    // 상세 보기(Detail View)에서 싱글클릭(복사) 처리 함수
     handleSingleClickOnDetailView() {
         const state = this.store.getState();
         const prompt = state.prompts.find(p => p.id === state.selectedPromptId);
@@ -128,7 +138,6 @@ class UI {
         }
     }
 
-    // 토스트 메시지 표시 함수
     showToast(message, type = 'success') {
         const existingToast = document.querySelector('.toast');
         if (existingToast) {
@@ -158,17 +167,29 @@ class UI {
         }
     }
 
+    // [수정] 렌더링 로직을 Vault와 Categories로 분리
     renderCategoryList({ categories, prompts, currentCategoryId }) {
         const unsortedCount = prompts.filter(p => !p.categoryId).length;
-        
-        // [수정] 모든 버튼에 'category-item' 클래스를 추가하여 CSS 스타일이 적용되도록 합니다.
-        const allPromptsHtml = `<button data-id="all" class="category-item ${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>`;
-        const unsortedHtml = `<button data-id="unsorted" class="category-item ${currentCategoryId === 'unsorted' ? 'active' : ''}"><span>미분류</span><span class="badge">${unsortedCount}</span></button>`;
-        const categoriesHtml = categories.map(cat => `<button data-id="${cat.id}" class="category-item ${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</button>`).join('');
-        
-        this.elements.categoryList.innerHTML = allPromptsHtml + unsortedHtml + categoriesHtml;
 
-        // 푸터에 있는 뱃지는 계속 업데이트
+        // 1. Vault 섹션 렌더링
+        const vaultHtml = `
+            <button data-id="all" class="category-item ${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>
+            <button data-id="unsorted" class="category-item ${currentCategoryId === 'unsorted' ? 'active' : ''}">
+                <span>미분류</span>
+                <span class="badge">${unsortedCount}</span>
+            </button>
+        `;
+        this.elements.vaultList.innerHTML = vaultHtml;
+
+        // 2. Categories 섹션 렌더링
+        const categoriesHtml = categories.map(cat => `
+            <button data-id="${cat.id}" class="category-item ${currentCategoryId === cat.id ? 'active' : ''}">
+                ${sanitizeHTML(cat.name)}
+            </button>
+        `).join('');
+        this.elements.userCategoryList.innerHTML = categoriesHtml;
+
+        // 3. 푸터 뱃지 업데이트
         this.elements.unsortedCountBadge.textContent = unsortedCount;
         this.elements.sortModeBtn.classList.toggle('highlight', unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS);
     }
@@ -209,7 +230,7 @@ class UI {
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
 
         if (!selectedPrompt) {
-            this.elements.promptDetailContainer.innerHTML = `<div id="detail-view-placeholder" class="placeholder">...</div>`;
+            this.elements.promptDetailContainer.innerHTML = `<div id="detail-view-placeholder" class="placeholder"><p>프롬프트를 선택하거나 새로 만드세요.</p><small>단축키: \`Ctrl+K\`로 명령어 팔레트 열기</small></div>`;
             return;
         }
         
@@ -292,14 +313,24 @@ class UI {
         this.elements.promptCount.textContent = `${unsortedPrompts.length}개 남음`;
 
         if (unsortedPrompts.length === 0) {
-            this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view" class="placeholder">...</div>`;
+            this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view" class="placeholder"><p>${APP_CONFIG.UI_TEXTS.EMPTY_SORT_MODE_MESSAGE}</p></div>`;
             return;
         }
 
         const currentPrompt = unsortedPrompts[0];
         const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, 3);
 
-        this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view">...</div>`;
+        this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view">
+            <h2>${APP_CONFIG.UI_TEXTS.SORT_MODE_TITLE}</h2>
+            <p>${APP_CONFIG.UI_TEXTS.SORT_MODE_PROMPT}</p>
+            <div class="sort-card">
+                <div class="sort-card-content">${sanitizeHTML(currentPrompt.content)}</div>
+                <div class="category-suggestions">
+                    ${suggestedCategories.map(c => `<button class="category-suggestion-btn" data-prompt-id="${currentPrompt.id}" data-category-id="${c.id}">${sanitizeHTML(c.name)}</button>`).join('')}
+                    <button class="category-suggestion-btn" data-prompt-id="${currentPrompt.id}" data-category-id="skip">나중에</button>
+                </div>
+            </div>
+        </div>`;
     }
 }
 
