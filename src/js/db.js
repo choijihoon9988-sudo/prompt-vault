@@ -109,3 +109,4 @@ export const db = {
         request.onsuccess = () => resolve(request.result);
     }),
 };
+
