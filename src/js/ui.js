@@ -20,7 +20,7 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        // [복원] 현재 편집 중인 프롬프트 ID를 추적하기 위한 상태
+        // [제거] contenteditable 방식을 사용하므로 ID 추적 상태가 더 이상 필요 없습니다.
         this.editingPromptId = null; 
     }
 
@@ -42,7 +42,7 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // [수정] 이벤트 리스너를 textarea 교체 방식으로 업그레이드
+    // [최종 업그레이드] 이벤트 리스너를 contenteditable + Turndown 방식으로 변경
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
@@ -70,41 +70,28 @@ class UI {
              const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
              if (suggestionBtn) this.handleSortModeAction(suggestionBtn.dataset.catId);
              
-             // [업그레이드] 원본 패널의 .prompt-content-view를 클릭하면 편집 모드로 전환
+             // 클릭 시 뷰를 편집 가능한 상태로 전환
              const contentView = e.target.closest('.original-panel .prompt-content-view');
-             if (contentView && this.editingPromptId === null) {
-                 const { selectedPromptId } = this.store.getState();
-                 this.switchToEditMode(selectedPromptId);
+             if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
+                 contentView.setAttribute('contenteditable', 'true');
+                 contentView.focus();
              }
         });
-    }
-
-    // [신규] 편집 모드로 전환하는 함수
-    switchToEditMode(promptId) {
-        if (!promptId) return;
-        this.editingPromptId = promptId;
-        this.renderDetailView(this.store.getState()); // 편집기 UI로 즉시 리렌더링
         
-        // 새로 생성된 textarea에 포커스를 주고, blur 이벤트를 설정
-        const editor = this.elements.promptDetailContainer.querySelector('.inline-editor');
-        if (editor) {
-            editor.focus();
-            editor.addEventListener('blur', () => {
-                this.store.updateSelectedPromptContent(editor.value);
-                this.editingPromptId = null;
-                // 저장 후 뷰 모드로 돌아가기 위해 다시 렌더링하지만, 
-                // store의 setState가 이미 리스너를 호출하므로 중복 호출될 수 있음.
-                // store 업데이트 후 자동 렌더링되므로 아래 라인은 주석 처리해도 무방.
-                // this.renderDetailView(this.store.getState());
-            });
-            // 내용에 맞게 높이 자동 조절
-            editor.style.height = 'auto';
-            editor.style.height = (editor.scrollHeight) + 'px';
-            editor.addEventListener('input', () => {
-                editor.style.height = 'auto';
-                editor.style.height = (editor.scrollHeight) + 'px';
-            });
-        }
+        // 포커스가 해제될 때(blur) 내용을 저장
+        this.elements.promptDetailContainer.addEventListener('blur', (e) => {
+            const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
+            if (contentView) {
+                contentView.setAttribute('contenteditable', 'false');
+                
+                // Turndown 라이브러리를 사용하여 수정된 HTML을 마크다운으로 변환
+                const turndownService = new TurndownService();
+                const newMarkdown = turndownService.turndown(contentView.innerHTML);
+                
+                // 변환된 마크다운을 저장하여 서식을 완벽하게 보존
+                this.store.updateSelectedPromptContent(newMarkdown);
+            }
+        }, true); // 캡처 단계에서 이벤트를 처리하여 안정성을 높임
     }
 
 
@@ -128,7 +115,7 @@ class UI {
         
         let categoryHtml = `<ul>
             <li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>
-            <li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
+            <li data--id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
             ${categories.map(cat => `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`).join('')}
         </ul>`;
         
@@ -169,7 +156,7 @@ class UI {
         this.renderDetailView(state);
     }
 
-    // [업그레이드] 상세 뷰 렌더링 시 편집 모드 상태를 확인
+    // 상세 뷰 렌더링 로직 (textarea 전환 로직 제거)
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
@@ -179,16 +166,11 @@ class UI {
             return;
         }
 
-        let originalPanelContent;
-        // 현재 프롬프트가 편집 모드일 경우, textarea를 렌더링
-        if (this.editingPromptId === selectedPrompt.id) {
-            originalPanelContent = `<textarea class="inline-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>`;
-        } else {
-            const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
-                ? marked.parse(selectedPrompt.content)
-                : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
-            originalPanelContent = `<div class="prompt-content-view">${originalContentHtml}</div>`;
-        }
+        // 항상 marked.js로 파싱된 HTML 뷰를 렌더링
+        const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+            ? marked.parse(selectedPrompt.content)
+            : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
+        const originalPanelContent = `<div class="prompt-content-view">${originalContentHtml}</div>`;
 
         let mainViewHtml;
         if (selectedPrompt.aiDraftContent || isLoading) {
@@ -221,7 +203,7 @@ class UI {
                 ${mainViewHtml}
             </div>`;
         
-        if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING && this.editingPromptId !== selectedPrompt.id) {
+        if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
     }
@@ -247,7 +229,7 @@ class UI {
         this.elements.promptCount.textContent = "캡처 중...";
 
         this.elements.promptDetailContainer.innerHTML = `
-            <div id="capture-view"><input type="text" id="capture-input" placeholder="번뜩이는 아이디어를 한 줄로... (Enter로 즉시 저장)"></div>`;
+            <div id="capture-view"><input type="text" id="capture-input" placeholder="${APP_CONFIG.UI_TEXTS.CAPTURE_PLACEHOLDER}"></div>`;
 
         const input = document.getElementById('capture-input');
         input.focus();
