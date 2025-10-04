@@ -278,14 +278,11 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
-    /* [추가] 뷰 전환 애니메이션 */
     transition: width var(--transition-medium);
 }
-/* [수정] 분할 뷰 내부의 패널에만 50% 너비 적용 */
 .detail-split-container .prompt-view-panel {
     width: 50%;
 }
-/* [추가] 단일 뷰일 때 패널이 전체 너비를 차지하도록 */
 .prompt-view-panel.full-width {
     width: 100%;
 }
@@ -316,29 +313,20 @@ body {
 }
 
 
-/* [수정] 명세서에 따라 인라인 에디터 스타일을 완벽하게 조정 */
-.prompt-content-editor {
-    width: 100%;
-    height: 100%; 
-    background-color: transparent; 
-    border: none; 
-    padding: 0; 
-    margin: 0;
-    font-family: 'D2Coding', monospace; /* 폰트 일치 */
-    font-size: 1rem; /* 폰트 크기 일치 */
-    line-height: 1.7; /* 줄 간격 일치 */
-    color: var(--text-primary); /* 색상 일치 */
-    resize: none; /* 리사이즈 핸들 제거 */
-    outline: none; /* 포커스 아웃라인 제거 */
-}
+/* [제거] textarea 에디터 스타일 제거 */
+/* .prompt-content-editor { ... } */
 
 .prompt-content-view {
     line-height: 1.7;
 }
 
-/* [수정] 명세서에 따라 편집 가능한 영역임을 암시하는 커서 추가 */
+/* [수정] contenteditable을 위한 스타일 */
 .original-panel .prompt-content-view {
     cursor: text;
+}
+/* [추가] 편집 모드일 때 포커스 아웃라인을 제거하여 더 자연스럽게 만듭니다. */
+.prompt-content-view[contenteditable="true"]:focus {
+    outline: none;
 }
 
 

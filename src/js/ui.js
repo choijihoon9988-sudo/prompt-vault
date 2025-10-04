@@ -20,7 +20,8 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        this.editingPromptId = null; 
+        // [제거] textarea 교체 방식이 아니므로 editingPromptId 상태가 더 이상 필요 없습니다.
+        // this.editingPromptId = null; 
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -41,7 +42,7 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // 이벤트 리스너를 한 곳에서 설정 (이벤트 위임 활용)
+    // [수정] 이벤트 리스너를 contenteditable 방식으로 변경
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
@@ -60,12 +61,11 @@ class UI {
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
-                if (this.editingPromptId) this.editingPromptId = null;
                 this.store.selectPrompt(parseInt(promptCard.dataset.id));
             }
         });
         
-        // 메인 컨텐츠 영역 클릭 (이벤트 위임) - 상세 뷰, 정리 모드
+        // 메인 컨텐츠 영역 클릭 (이벤트 위임)
         this.elements.promptDetailContainer.addEventListener('click', (e) => {
              const targetId = e.target.closest('button')?.id;
              switch(targetId) {
@@ -89,19 +89,21 @@ class UI {
                  return;
              }
              
+             // [수정] 클릭 시 textarea로 바꾸는 대신 contenteditable 속성을 활성화
              const contentView = e.target.closest('.original-panel .prompt-content-view');
-             if (contentView && this.editingPromptId === null) {
-                 const { selectedPromptId } = this.store.getState();
-                 this.editingPromptId = selectedPromptId;
-                 this.render(); 
+             if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
+                 contentView.setAttribute('contenteditable', 'true');
+                 contentView.focus();
              }
         });
         
+        // [수정] blur 이벤트를 contenteditable 요소에 맞게 수정
         this.elements.promptDetailContainer.addEventListener('blur', (e) => {
-            const editor = e.target.closest('textarea.prompt-content-editor');
-            if (editor && this.editingPromptId !== null) {
-                this.store.updateSelectedPromptContent(editor.value);
-                this.editingPromptId = null; 
+            const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
+            if (contentView) {
+                contentView.setAttribute('contenteditable', 'false');
+                // 주의: 이 방식은 마크다운 서식을 제거하고 순수 텍스트만 저장합니다.
+                this.store.updateSelectedPromptContent(contentView.innerText);
             }
         }, true); 
     }
@@ -114,10 +116,6 @@ class UI {
         
         this.elements.promptListContainer.classList.remove('inactive');
         
-        if (this.editingPromptId === null) {
-            this.elements.promptDetailContainer.innerHTML = '';
-        }
-
         switch(state.viewMode) {
             case 'sort':
                 this.renderSortModeView(state);
@@ -158,40 +156,38 @@ class UI {
     renderListView(state) {
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
 
-        if (this.editingPromptId === null) {
-            let filteredPrompts = [];
-            let categoryTitle = "";
-            if (currentCategoryId === 'all') {
-                filteredPrompts = prompts;
-                categoryTitle = "모든 프롬프트";
-            } else if (currentCategoryId === 'unsorted') {
-                filteredPrompts = prompts.filter(p => !p.categoryId);
-                categoryTitle = "미분류";
-            } else {
-                filteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
-                const cat = categories.find(c => c.id === currentCategoryId);
-                categoryTitle = cat ? cat.name : "알 수 없는 카테고리";
-            }
+        let filteredPrompts = [];
+        let categoryTitle = "";
+        if (currentCategoryId === 'all') {
+            filteredPrompts = prompts;
+            categoryTitle = "모든 프롬프트";
+        } else if (currentCategoryId === 'unsorted') {
+            filteredPrompts = prompts.filter(p => !p.categoryId);
+            categoryTitle = "미분류";
+        } else {
+            filteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
+            const cat = categories.find(c => c.id === currentCategoryId);
+            categoryTitle = cat ? cat.name : "알 수 없는 카테고리";
+        }
 
-            this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
-            this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
-            
-            if (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted') {
-                 this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`;
-            } else {
-                 this.elements.promptList.innerHTML = filteredPrompts.map(p => `
-                    <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
-                        <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
-                        <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
-                    </div>
-                `).join('');
-            }
+        this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
+        this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
+        
+        if (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted') {
+             this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`;
+        } else {
+             this.elements.promptList.innerHTML = filteredPrompts.map(p => `
+                <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
+                    <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
+                    <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
+                </div>
+            `).join('');
         }
         
         this.renderDetailView(state);
     }
 
-    // [대폭 수정] 상세 뷰를 단일/분할 모드로 동적 렌더링
+    // 상세 뷰 렌더링
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
@@ -209,9 +205,8 @@ class UI {
             ? marked.parse(selectedPrompt.content)
             : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
         
-        const originalPanelContent = (selectedPrompt.id === this.editingPromptId)
-            ? `<textarea class="prompt-content-editor">${selectedPrompt.content}</textarea>`
-            : `<div class="prompt-content-view">${originalContentHtml}</div>`;
+        // [수정] 더 이상 textarea로 전환하지 않고, 항상 div로 렌더링합니다.
+        const originalPanelContent = `<div class="prompt-content-view">${originalContentHtml}</div>`;
 
         let mainViewHtml;
 
@@ -265,14 +260,6 @@ class UI {
                 </div>
                 ${mainViewHtml}
             </div>`;
-        
-        if (selectedPrompt.id === this.editingPromptId) {
-            const editor = this.elements.promptDetailContainer.querySelector('.prompt-content-editor');
-            if (editor) {
-                editor.focus();
-                editor.setSelectionRange(editor.value.length, editor.value.length);
-            }
-        }
         
         if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
