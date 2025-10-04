@@ -42,7 +42,7 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // [최종 수정] 이벤트 리스너 로직을 사용자 지침에 맞게 재수정
+    // [최종 수정] 이벤트 리스너 로직을 통합하여 안정성 확보
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
@@ -53,7 +53,7 @@ class UI {
             if (li) this.store.selectCategory(li.dataset.id === 'all' || li.dataset.id === 'unsorted' ? li.dataset.id : parseInt(li.dataset.id));
         });
 
-        // [수정] 프롬프트 목록 클릭 시, 프롬프트를 '선택'하는 원래 기능으로 복원
+        // 프롬프트 목록 클릭 시 '선택' 기능
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
@@ -62,53 +62,9 @@ class UI {
             }
         });
         
-        // [수정] 상세 보기 영역의 이벤트 핸들러 통합 및 기능 재정의
-        this.elements.promptDetailContainer.addEventListener('click', (e) => {
-            // 버튼 클릭 처리
-            const button = e.target.closest('button');
-            if (button) {
-                switch(button.id) {
-                    case 'generate-ai-draft-btn': this.store.generateAIDraft(); break;
-                    case 'delete-prompt-btn': this.store.deleteSelectedPrompt(); break;
-                    case 'confirm-ai-draft-btn': this.store.confirmAIDraft(); break;
-                    case 'exit-sort-mode-btn': this.store.exitSortMode(); break;
-                }
-                return;
-            }
-
-            const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
-            if (suggestionBtn) {
-                this.handleSortModeAction(suggestionBtn.dataset.catId);
-                return;
-            }
-
-            // [핵심] 상세 보기의 '콘텐츠 영역'에 대한 원클릭 복사 기능
-            const contentView = e.target.closest('.original-panel .prompt-content-view');
-            if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
-                if (this.clickTimer) {
-                    clearTimeout(this.clickTimer);
-                    this.clickTimer = null;
-                    return; // 더블클릭으로 판정되면 종료
-                }
-                this.clickTimer = setTimeout(() => {
-                    this.handleSingleClickOnDetailView(); // 싱글클릭 시 복사 실행
-                    this.clickTimer = null;
-                }, 200);
-            }
-        });
-
-        // [핵심] 상세 보기의 '콘텐츠 영역'에 대한 더블클릭 수정 기능
-        this.elements.promptDetailContainer.addEventListener('dblclick', (e) => {
-            const contentView = e.target.closest('.original-panel .prompt-content-view');
-            if (contentView) {
-                if (this.clickTimer) {
-                    clearTimeout(this.clickTimer);
-                    this.clickTimer = null;
-                }
-                contentView.setAttribute('contenteditable', 'true');
-                contentView.focus();
-            }
-        });
+        // [핵심 수정] 더블클릭 리스너를 제거하고 클릭 리스너에서 모든 것을 처리
+        this.elements.promptDetailContainer.removeEventListener('dblclick', this.handleDetailDoubleClick); // 기존 리스너 제거
+        this.elements.promptDetailContainer.addEventListener('click', this.handleDetailClick.bind(this));
         
         // contenteditable 요소의 blur 이벤트(포커스 아웃) 시 저장
         this.elements.promptDetailContainer.addEventListener('blur', (e) => {
@@ -122,7 +78,41 @@ class UI {
         }, true);
     }
     
-    // [신규] 상세 보기(Detail View)에서 싱글클릭(복사) 처리 함수
+    // [핵심] 상세 보기 영역의 모든 클릭 이벤트를 처리하는 단일 함수
+    handleDetailClick(e) {
+        // 버튼 클릭 처리
+        const button = e.target.closest('button');
+        if (button) {
+            switch(button.id) {
+                case 'generate-ai-draft-btn': this.store.generateAIDraft(); break;
+                case 'delete-prompt-btn': this.store.deleteSelectedPrompt(); break;
+                case 'confirm-ai-draft-btn': this.store.confirmAIDraft(); break;
+            }
+            return;
+        }
+
+        // 프롬프트 내용(contentView) 클릭 처리
+        const contentView = e.target.closest('.original-panel .prompt-content-view');
+        if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
+            // 타이머가 이미 설정되어 있다면, 두 번째 클릭(더블클릭)으로 간주
+            if (this.clickTimer) {
+                clearTimeout(this.clickTimer);
+                this.clickTimer = null;
+                // 더블클릭 액션: 수정 모드로 전환
+                contentView.setAttribute('contenteditable', 'true');
+                contentView.focus();
+            } else {
+                // 첫 번째 클릭: 타이머 설정
+                this.clickTimer = setTimeout(() => {
+                    // 싱글클릭 액션: 복사
+                    this.handleSingleClickOnDetailView();
+                    this.clickTimer = null;
+                }, 200); // 200ms 이내에 다른 클릭이 없으면 싱글클릭으로 간주
+            }
+        }
+    }
+
+    // 상세 보기(Detail View)에서 싱글클릭(복사) 처리 함수
     handleSingleClickOnDetailView() {
         const state = this.store.getState();
         const prompt = state.prompts.find(p => p.id === state.selectedPromptId);
@@ -138,7 +128,7 @@ class UI {
         }
     }
 
-    // 토스트 메시지 표시 함수 (변경 없음)
+    // 토스트 메시지 표시 함수
     showToast(message, type = 'success') {
         const existingToast = document.querySelector('.toast');
         if (existingToast) {
@@ -155,14 +145,12 @@ class UI {
         }, 1500);
     }
 
-    // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
+    // --- 이하 렌더링 관련 함수 (변경 없음) ---
+
     render(state) {
         if (!state) state = this.store.getState();
-        
         this.renderSidebar(state);
-        
         this.elements.promptListContainer.classList.remove('inactive');
-        
         switch(state.viewMode) {
             case 'sort': this.renderSortModeView(state); break;
             case 'capture': this.renderCaptureView(state); break;
@@ -172,13 +160,11 @@ class UI {
 
     renderSidebar({ categories, prompts, currentCategoryId }) {
         const unsortedCount = prompts.filter(p => !p.categoryId).length;
-        
         let categoryHtml = `<ul>
             <li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>
             <li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
             ${categories.map(cat => `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`).join('')}
         </ul>`;
-        
         this.elements.categoryNav.innerHTML = categoryHtml;
         this.elements.unsortedCountBadge.textContent = unsortedCount;
         this.elements.sortModeBtn.classList.toggle('highlight', unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS);
@@ -186,7 +172,6 @@ class UI {
 
     renderListView(state) {
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
-
         let filteredPrompts = [];
         let categoryTitle = "";
         if (currentCategoryId === 'all') {
@@ -216,7 +201,6 @@ class UI {
         this.renderDetailView(state);
     }
 
-    // 상세 뷰 렌더링 로직
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
@@ -313,18 +297,6 @@ class UI {
         const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, 3);
 
         this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view">...</div>`;
-    }
-
-    handleSortModeAction(categoryId) {
-        const unsortedPrompts = this.store.getState().prompts.filter(p => !p.categoryId);
-        if (unsortedPrompts.length === 0) return;
-        const currentPrompt = unsortedPrompts[0];
-        if (categoryId === 'new') {
-            const newCategoryName = prompt("새 카테고리 이름을 입력하세요:");
-            if (newCategoryName) alert(`'${newCategoryName}' 카테고리가 생성되어 할당되었습니다. (스토어 액션 구현 필요)`);
-        } else {
-            this.store.assignCategoryToPrompt(currentPrompt.id, parseInt(categoryId));
-        }
     }
 }
 
