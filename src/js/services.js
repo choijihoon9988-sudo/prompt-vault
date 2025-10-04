@@ -44,9 +44,17 @@ class Services {
                 throw new Error("API로부터 유효한 초안을 받지 못했습니다.");
             }
             
-            // [수정] AI가 반환한 JSON 문자열을 파싱하여 객체로 변환
-            const match = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-            const jsonString = match ? match[1] : rawText;
+            // [수정] AI가 반환하는 불안정한 텍스트에서 JSON 객체를 안정적으로 추출하는 로직
+            let jsonString = rawText;
+            const startIndex = jsonString.indexOf('{');
+            const endIndex = jsonString.lastIndexOf('}');
+            
+            if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+                jsonString = jsonString.substring(startIndex, endIndex + 1);
+            } else {
+                throw new Error("응답에서 유효한 JSON 객체를 찾을 수 없습니다.");
+            }
+            
             const result = JSON.parse(jsonString);
 
             if (!result.title || !result.summary || !result.draft) {
@@ -99,9 +107,17 @@ class Services {
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!rawText) throw new Error("Empty response from AI.");
 
-            // [수정] 더 안전한 JSON 추출 및 파싱
-            const match = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-            const jsonString = match ? match[1] : rawText;
+            // [수정] AI가 반환하는 불안정한 텍스트에서 JSON 객체를 안정적으로 추출하는 로직
+            let jsonString = rawText;
+            const startIndex = jsonString.indexOf('{');
+            const endIndex = jsonString.lastIndexOf('}');
+
+            if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+                jsonString = jsonString.substring(startIndex, endIndex + 1);
+            } else {
+                 throw new Error("응답에서 유효한 JSON 객체를 찾을 수 없습니다.");
+            }
+            
             const suggestions = JSON.parse(jsonString);
 
             const validCategories = categories.map(c => c.name);
