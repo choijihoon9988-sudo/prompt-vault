@@ -20,10 +20,14 @@ export const APP_CONFIG = {
     COMMAND_PALETTE_PLACEHOLDER: "명령어 검색...",
   },
 
-  // --- AI 서비스 시뮬레이션 설정 ---
+  // --- AI 서비스 설정 ---
   AI_SERVICE: {
+    // 여기에 당신의 Google AI Studio에서 발급받은 API 키를 입력하세요.
+    // 중요: 이 키를 외부에 노출하지 마세요.
+    GEMINI_API_KEY: "AIzaSyDSIRzDsbonDZwuDB6RRmYYy-vR2Cqupmg",
+
     // '전략가 AI'가 초안을 생성하는 데 걸리는 시간을 밀리초(ms) 단위로 설정합니다.
-    // 사용자에게 AI가 '생각'하는 듯한 경험을 제공합니다.
+    // (실제 API를 사용하므로 이 값은 더 이상 사용되지 않지만, 만약을 위해 남겨둡니다.)
     SIMULATED_API_LATENCY_MS: 800,
 
     // AI가 추천하는 카테고리의 개수를 설정합니다.
