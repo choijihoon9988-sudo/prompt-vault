@@ -9,7 +9,7 @@ class UI {
         this.elements = {
             appTitle: document.getElementById('app-title'),
             favicon: document.querySelector("link[rel*='icon']"),
-            categoryNav: document.getElementById('category-nav'),
+            categoryTabs: document.getElementById('category-tabs'),
             promptListContainer: document.getElementById('prompt-list-container'),
             promptList: document.getElementById('prompt-list'),
             promptDetailContainer: document.getElementById('prompt-detail-container'),
@@ -48,9 +48,9 @@ class UI {
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
         this.elements.sortModeBtn.addEventListener('click', () => this.store.enterSortMode());
 
-        this.elements.categoryNav.addEventListener('click', (e) => {
-            const li = e.target.closest('li[data-id]');
-            if (li) this.store.selectCategory(li.dataset.id === 'all' || li.dataset.id === 'unsorted' ? li.dataset.id : parseInt(li.dataset.id));
+        this.elements.categoryTabs.addEventListener('click', (e) => {
+            const button = e.target.closest('button[data-id]');
+            if (button) this.store.selectCategory(button.dataset.id === 'all' || button.dataset.id === 'unsorted' ? button.dataset.id : parseInt(button.dataset.id));
         });
 
         // 프롬프트 목록 클릭 시 '선택' 기능
@@ -149,7 +149,7 @@ class UI {
 
     render(state) {
         if (!state) state = this.store.getState();
-        this.renderSidebar(state);
+        this.renderCategoryTabs(state);
         this.elements.promptListContainer.classList.remove('inactive');
         switch(state.viewMode) {
             case 'sort': this.renderSortModeView(state); break;
@@ -158,14 +158,16 @@ class UI {
         }
     }
 
-    renderSidebar({ categories, prompts, currentCategoryId }) {
+    renderCategoryTabs({ categories, prompts, currentCategoryId }) {
         const unsortedCount = prompts.filter(p => !p.categoryId).length;
-        let categoryHtml = `<ul>
-            <li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>
-            <li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
-            ${categories.map(cat => `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`).join('')}
-        </ul>`;
-        this.elements.categoryNav.innerHTML = categoryHtml;
+        
+        let tabsHtml = `
+            <button data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>
+            <button data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</button>
+            ${categories.map(cat => `<button data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</button>`).join('')}
+        `;
+        this.elements.categoryTabs.innerHTML = tabsHtml;
+
         this.elements.unsortedCountBadge.textContent = unsortedCount;
         this.elements.sortModeBtn.classList.toggle('highlight', unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS);
     }

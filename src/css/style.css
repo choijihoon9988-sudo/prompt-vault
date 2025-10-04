@@ -51,28 +51,26 @@ body {
     height: 100vh;
 }
 
-.sidebar {
-    width: 280px;
+.left-panel {
+    width: 350px;
     flex-shrink: 0;
     background-color: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    padding: 1rem;
 }
 
-.main-content {
+.right-panel {
     flex-grow: 1;
     display: flex;
     overflow: hidden;
 }
 
 .prompt-list-container {
-    width: 350px;
-    flex-shrink: 0;
-    border-right: 1px solid var(--border-color);
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     transition: var(--transition-medium);
 }
 
@@ -86,12 +84,13 @@ body {
 
 /* === 컴포넌트 스타일 === */
 
-/* 사이드바 */
+/* 좌측 패널 헤더 & 푸터 */
 .sidebar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    padding: 1rem;
+    flex-shrink: 0;
 }
 
 #app-title {
@@ -122,30 +121,12 @@ body {
     line-height: 1;
 }
 
-.category-nav ul {
-    list-style: none;
-}
-.category-nav li {
-    padding: 0.6rem 0.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: var(--transition-fast);
-    margin-bottom: 0.25rem;
-}
-.category-nav li:hover {
-    background-color: var(--bg-tertiary);
-    color: var(--text-primary);
-}
-.category-nav li.active {
-    background-color: var(--primary-color);
-    color: white;
+.sidebar-footer {
+    padding: 1rem;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
 }
 
-.sidebar-footer {
-    margin-top: auto;
-}
 .sort-mode-btn {
     width: 100%;
     padding: 0.75rem;
@@ -165,6 +146,44 @@ body {
 .sort-mode-btn.highlight .badge {
     transform: scale(1.2);
     box-shadow: 0 0 10px var(--primary-color);
+}
+
+
+/* 신규 카테고리 탭 */
+.category-tabs {
+    padding: 0.5rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.category-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.category-tabs::-webkit-scrollbar-thumb {
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+}
+.category-tabs button {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    border: none;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+.category-tabs button:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+.category-tabs button.active {
+    background-color: var(--primary-color);
+    color: white;
 }
 
 

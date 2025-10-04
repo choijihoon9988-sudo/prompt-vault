@@ -11,21 +11,14 @@
 </head>
 <body>
     <div id="app-container">
-        <aside class="sidebar">
+        <div class="left-panel">
             <header class="sidebar-header">
                 <h1 id="app-title"></h1>
                 <button id="new-prompt-btn" class="sidebar-btn" title="새 프롬프트 생성 (Ctrl+N)">+</button>
             </header>
-            <nav id="category-nav" class="category-nav">
-                </nav>
-            <div class="sidebar-footer">
-                <button id="sort-mode-btn" class="sidebar-btn sort-mode-btn" title="정리 모드 (Ctrl+S)">
-                    정리 모드 <span id="unsorted-count-badge" class="badge">0</span>
-                </button>
-            </div>
-        </aside>
 
-        <main class="main-content">
+            <nav id="category-tabs" class="category-tabs"></nav>
+
             <section id="prompt-list-container" class="prompt-list-container">
                 <header class="list-header">
                     <h2 id="current-category-title"></h2>
@@ -35,13 +28,21 @@
                     </div>
             </section>
 
+            <div class="sidebar-footer">
+                <button id="sort-mode-btn" class="sidebar-btn sort-mode-btn" title="정리 모드 (Ctrl+S)">
+                    정리 모드 <span id="unsorted-count-badge" class="badge">0</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="right-panel">
             <section id="prompt-detail-container" class="prompt-detail-container">
                 <div id="detail-view-placeholder" class="placeholder">
                     <p>프롬프트를 선택하거나 새로 만드세요.</p>
                     <small>단축키: `Ctrl+K`로 명령어 팔레트 열기</small>
                 </div>
             </section>
-        </main>
+        </div>
     </div>
 
     <div id="command-palette-overlay" class="command-palette-overlay hidden">
