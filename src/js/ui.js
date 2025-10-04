@@ -20,6 +20,8 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
+        // [신규] 편집 중인 프롬프트 ID를 추적하기 위한 로컬 상태
+        this.editingPromptId = null;
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -59,15 +61,26 @@ class UI {
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
+                // [수정] 다른 프롬프트 선택 시, 기존 편집모드 해제 및 저장
+                this.saveEditingPrompt(); 
                 this.store.selectPrompt(parseInt(promptCard.dataset.id));
             }
         });
         
         // 메인 컨텐츠 영역 클릭 (이벤트 위임) - 정리 모드, 상세 뷰
         this.elements.promptDetailContainer.addEventListener('click', (e) => {
+             // [신규] 프롬프트 내용 클릭 시 편집 모드로 전환
+             const contentView = e.target.closest('.prompt-content-view');
+             if (contentView) {
+                 this.editingPromptId = this.store.getState().selectedPromptId;
+                 this.render(); // 편집 모드로 리렌더링
+                 return;
+             }
+
              const targetId = e.target.closest('button')?.id;
              switch(targetId) {
                  case 'generate-ai-draft-btn':
+                     this.saveEditingPrompt();
                      this.store.generateAIDraft();
                      break;
                  case 'delete-prompt-btn':
@@ -87,11 +100,36 @@ class UI {
                  return;
              }
         });
+
+        // [신규] 편집창에서 포커스가 벗어날 때(blur) 자동 저장
+        this.elements.promptDetailContainer.addEventListener('focusout', (e) => {
+            if (e.target.matches('.prompt-content-editor')) {
+                this.saveEditingPrompt();
+            }
+        });
     }
+    
+    // [신규] 편집 중인 프롬프트 내용을 저장하는 헬퍼 함수
+    saveEditingPrompt() {
+        if (this.editingPromptId === null) return;
+
+        const editor = this.elements.promptDetailContainer.querySelector('.prompt-content-editor');
+        if (editor) {
+            const newContent = editor.value;
+            this.store.updateSelectedPromptContent(newContent);
+        }
+        this.editingPromptId = null;
+    }
+
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
     render(state) {
         if (!state) state = this.store.getState();
+
+        // [수정] 다른 카테고리 선택 시, 편집모드 해제 및 저장
+        if (this.editingPromptId !== null && this.editingPromptId !== state.selectedPromptId) {
+            this.saveEditingPrompt();
+        }
         
         this.renderSidebar(state);
         
@@ -183,9 +221,16 @@ class UI {
             return;
         }
 
-        const contentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
-            ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
-            : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
+        // [수정] 편집 모드 여부에 따라 다른 HTML을 렌더링
+        const isEditing = this.editingPromptId === selectedPrompt.id;
+        let contentHtml = '';
+        if (isEditing) {
+            contentHtml = `<textarea class="prompt-content-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>`;
+        } else {
+            contentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+                ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
+                : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
+        }
 
         this.elements.promptDetailContainer.innerHTML = `
             <div id="detail-view">
@@ -203,6 +248,12 @@ class UI {
                     ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
                 </div>
             </div>`;
+        
+        // [수정] 편집 모드일 경우, textarea에 자동으로 포커스
+        if (isEditing) {
+            const editor = this.elements.promptDetailContainer.querySelector('.prompt-content-editor');
+            if(editor) editor.focus();
+        }
         
         if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);

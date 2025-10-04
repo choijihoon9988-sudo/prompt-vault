@@ -272,6 +272,8 @@ body {
 
 .prompt-content-view {
     line-height: 1.7;
+    /* [수정] 사용자가 편집할 수 있음을 암시하도록 커서 변경 */
+    cursor: pointer; 
 }
 
 .prompt-content-view h1,.prompt-content-view h2,.prompt-content-view h3 {
