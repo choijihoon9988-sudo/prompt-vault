@@ -42,7 +42,7 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // [최종 업그레이드] 이벤트 리스너를 contenteditable + Turndown 방식으로 변경 + 원클릭/더블클릭 기능 추가
+    // [최종 수정] 이벤트 리스너 로직을 사용자 지침에 맞게 재수정
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
@@ -53,72 +53,79 @@ class UI {
             if (li) this.store.selectCategory(li.dataset.id === 'all' || li.dataset.id === 'unsorted' ? li.dataset.id : parseInt(li.dataset.id));
         });
 
-        // [수정] 클릭/더블클릭 이벤트 리스너 구현
+        // [수정] 프롬프트 목록 클릭 시, 프롬프트를 '선택'하는 원래 기능으로 복원
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
-            if (!promptCard) return;
-
-            if (this.clickTimer) {
-                clearTimeout(this.clickTimer);
-                this.clickTimer = null;
-                return;
-            }
-
-            this.clickTimer = setTimeout(() => {
-                const promptId = parseInt(promptCard.dataset.id);
-                this.handleSingleClick(promptId);
-                this.clickTimer = null;
-            }, 200);
-        });
-        
-        this.elements.promptList.addEventListener('dblclick', (e) => {
-            const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
-                if (this.clickTimer) {
-                    clearTimeout(this.clickTimer);
-                    this.clickTimer = null;
-                }
                 const promptId = parseInt(promptCard.dataset.id);
                 this.store.selectPrompt(promptId);
             }
         });
         
+        // [수정] 상세 보기 영역의 이벤트 핸들러 통합 및 기능 재정의
         this.elements.promptDetailContainer.addEventListener('click', (e) => {
-             const targetId = e.target.closest('button')?.id;
-             switch(targetId) {
-                 case 'generate-ai-draft-btn': this.store.generateAIDraft(); break;
-                 case 'delete-prompt-btn': this.store.deleteSelectedPrompt(); break;
-                 case 'confirm-ai-draft-btn': this.store.confirmAIDraft(); break;
-                 case 'exit-sort-mode-btn': this.store.exitSortMode(); break;
-             }
+            // 버튼 클릭 처리
+            const button = e.target.closest('button');
+            if (button) {
+                switch(button.id) {
+                    case 'generate-ai-draft-btn': this.store.generateAIDraft(); break;
+                    case 'delete-prompt-btn': this.store.deleteSelectedPrompt(); break;
+                    case 'confirm-ai-draft-btn': this.store.confirmAIDraft(); break;
+                    case 'exit-sort-mode-btn': this.store.exitSortMode(); break;
+                }
+                return;
+            }
 
-             const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
-             if (suggestionBtn) this.handleSortModeAction(suggestionBtn.dataset.catId);
-             
-             const contentView = e.target.closest('.original-panel .prompt-content-view');
-             if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
-                 contentView.setAttribute('contenteditable', 'true');
-                 contentView.focus();
-             }
+            const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
+            if (suggestionBtn) {
+                this.handleSortModeAction(suggestionBtn.dataset.catId);
+                return;
+            }
+
+            // [핵심] 상세 보기의 '콘텐츠 영역'에 대한 원클릭 복사 기능
+            const contentView = e.target.closest('.original-panel .prompt-content-view');
+            if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
+                if (this.clickTimer) {
+                    clearTimeout(this.clickTimer);
+                    this.clickTimer = null;
+                    return; // 더블클릭으로 판정되면 종료
+                }
+                this.clickTimer = setTimeout(() => {
+                    this.handleSingleClickOnDetailView(); // 싱글클릭 시 복사 실행
+                    this.clickTimer = null;
+                }, 200);
+            }
+        });
+
+        // [핵심] 상세 보기의 '콘텐츠 영역'에 대한 더블클릭 수정 기능
+        this.elements.promptDetailContainer.addEventListener('dblclick', (e) => {
+            const contentView = e.target.closest('.original-panel .prompt-content-view');
+            if (contentView) {
+                if (this.clickTimer) {
+                    clearTimeout(this.clickTimer);
+                    this.clickTimer = null;
+                }
+                contentView.setAttribute('contenteditable', 'true');
+                contentView.focus();
+            }
         });
         
+        // contenteditable 요소의 blur 이벤트(포커스 아웃) 시 저장
         this.elements.promptDetailContainer.addEventListener('blur', (e) => {
             const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
             if (contentView) {
                 contentView.setAttribute('contenteditable', 'false');
-                
                 const turndownService = new TurndownService();
                 const newMarkdown = turndownService.turndown(contentView.innerHTML);
-                
                 this.store.updateSelectedPromptContent(newMarkdown);
             }
         }, true);
     }
     
-    // [신규] 싱글클릭(복사) 처리 함수
-    handleSingleClick(promptId) {
+    // [신규] 상세 보기(Detail View)에서 싱글클릭(복사) 처리 함수
+    handleSingleClickOnDetailView() {
         const state = this.store.getState();
-        const prompt = state.prompts.find(p => p.id === promptId);
+        const prompt = state.prompts.find(p => p.id === state.selectedPromptId);
         if (prompt) {
             navigator.clipboard.writeText(prompt.content)
                 .then(() => {
@@ -131,7 +138,7 @@ class UI {
         }
     }
 
-    // [신규] 토스트 메시지 표시 함수
+    // 토스트 메시지 표시 함수 (변경 없음)
     showToast(message, type = 'success') {
         const existingToast = document.querySelector('.toast');
         if (existingToast) {
@@ -147,7 +154,6 @@ class UI {
             toast.remove();
         }, 1500);
     }
-
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
     render(state) {
@@ -210,7 +216,7 @@ class UI {
         this.renderDetailView(state);
     }
 
-    // 상세 뷰 렌더링 로직 (textarea 전환 로직 제거)
+    // 상세 뷰 렌더링 로직
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
@@ -219,8 +225,7 @@ class UI {
             this.elements.promptDetailContainer.innerHTML = `<div id="detail-view-placeholder" class="placeholder">...</div>`;
             return;
         }
-
-        // 항상 marked.js로 파싱된 HTML 뷰를 렌더링
+        
         const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
             ? marked.parse(selectedPrompt.content)
             : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
