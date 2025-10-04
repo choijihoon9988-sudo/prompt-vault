@@ -26,7 +26,7 @@ export const APP_CONFIG = {
     API_KEY: "AIzaSyDSIRzDsbonDZwuDB6RRmYYy-vR2Cqupmg", 
     
     // API 호출에 사용할 모델 이름
-    MODEL_NAME: "gemini-1.5-flash",
+    MODEL_NAME: "gemini-2.5-pro",
 
     // AI가 생성하는 프롬프트 초안의 기본 구조입니다.
     // {userInput} 부분은 사용자의 실제 입력으로 대체됩니다.
