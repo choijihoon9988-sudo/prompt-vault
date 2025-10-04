@@ -55,7 +55,7 @@ class UI {
             }
         });
 
-        // 프롬프트 목록 및 정렬 모드 클릭 (이벤트 위임)
+        // 프롬프트 목록 클릭 (이벤트 위임)
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
@@ -64,33 +64,42 @@ class UI {
             }
         });
         
-        this.elements.promptDetailContainer.addEventListener('click', (e) => {
-            const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
-            if (suggestionBtn) {
-                this.handleSortModeAction(suggestionBtn.dataset.catId);
-                return;
+        // 상세 뷰 및 정렬 모드 클릭 (이벤트 위임)
+        document.body.addEventListener('click', (e) => {
+             // promptDetailContainer가 동적으로 교체되므로 body에서 위임 처리
+            const detailContainer = e.target.closest('.prompt-detail-container');
+            if(detailContainer) {
+                const targetId = e.target.closest('button')?.id;
+                switch(targetId) {
+                    case 'generate-ai-draft-btn':
+                        this.store.generateAIDraft();
+                        break;
+                    case 'delete-prompt-btn':
+                        this.store.deleteSelectedPrompt();
+                        break;
+                    case 'confirm-ai-draft-btn':
+                        this.store.confirmAIDraft();
+                        break;
+                }
             }
 
-            if (e.target.closest('#exit-sort-mode-btn')) {
-                this.store.exitSortMode();
-            }
+            // sortModeView가 동적으로 교체되므로 body에서 위임 처리
+            const sortModeContainer = e.target.closest('#sort-mode-view');
+            if(sortModeContainer) {
+                const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
+                if (suggestionBtn) {
+                    this.handleSortModeAction(suggestionBtn.dataset.catId);
+                    return;
+                }
 
-            const targetId = e.target.closest('button')?.id;
-            switch(targetId) {
-                case 'generate-ai-draft-btn':
-                    this.store.generateAIDraft();
-                    break;
-                case 'delete-prompt-btn':
-                    this.store.deleteSelectedPrompt();
-                    break;
-                case 'confirm-ai-draft-btn':
-                    this.store.confirmAIDraft();
-                    break;
+                if (e.target.closest('#exit-sort-mode-btn')) {
+                    this.store.exitSortMode();
+                }
             }
         });
 
         // 프롬프트 상세 뷰 자동 저장을 위한 이벤트 리스너 (이벤트 위임)
-        this.elements.promptDetailContainer.addEventListener('input', (e) => {
+        document.body.addEventListener('input', (e) => {
             if (e.target.id === 'prompt-content-editor') {
                 clearTimeout(this.debounceTimer);
                 this.debounceTimer = setTimeout(() => {
@@ -112,18 +121,21 @@ class UI {
             mainContent.innerHTML = ''; // 기존 list, detail 컨테이너 제거
             this.renderSortModeView(state, mainContent);
         } else {
-            // viewMode가 list일 경우, HTML 구조를 다시 설정
-            mainContent.innerHTML = `
-                <section id="prompt-list-container" class="prompt-list-container">
-                    <header class="list-header">
-                        <h2 id="current-category-title"></h2>
-                        <span id="prompt-count"></span>
-                    </header>
-                    <div id="prompt-list" class="prompt-list"></div>
-                </section>
-                <section id="prompt-detail-container" class="prompt-detail-container"></section>
-            `;
-            // 다시 DOM 요소를 캐싱해야 함
+             // main-content의 자식으로 prompt-list-container가 있는지 확인
+            if (!mainContent.querySelector('.prompt-list-container')) {
+                 mainContent.innerHTML = `
+                    <section id="prompt-list-container" class="prompt-list-container">
+                        <header class="list-header">
+                            <h2 id="current-category-title"></h2>
+                            <span id="prompt-count"></span>
+                        </header>
+                        <div id="prompt-list" class="prompt-list"></div>
+                    </section>
+                    <section id="prompt-detail-container" class="prompt-detail-container"></section>
+                `;
+            }
+           
+            // 다시 DOM 요소를 캐싱
             this.elements.promptList = document.getElementById('prompt-list');
             this.elements.promptDetailContainer = document.getElementById('prompt-detail-container');
             this.elements.currentCategoryTitle = document.getElementById('current-category-title');
@@ -230,7 +242,7 @@ class UI {
                 <div class="detail-header">
                     <small>최종 수정: ${new Date(selectedPrompt.updatedAt).toLocaleString()}</small>
                     <div class="detail-header-actions">
-                         <button id="generate-ai-draft-btn" ${isLoading}>
+                         <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>
                             ${isLoading ? '생성 중...' : '✨ AI 초안 생성'}
                         </button>
                         <button id="delete-prompt-btn">삭제</button>
@@ -241,9 +253,11 @@ class UI {
         
         if (isEditMode) {
             const editor = document.getElementById('prompt-content-editor');
-            editor.focus();
-            // 커서를 텍스트 끝으로 이동
-            editor.selection.start = editor.selection.end = editor.value.length;
+            if (editor) {
+                editor.focus();
+                // [FIX] textarea의 커서를 텍스트 끝으로 이동시키는 올바른 방법
+                editor.selectionStart = editor.selectionEnd = editor.value.length;
+            }
         } else if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
