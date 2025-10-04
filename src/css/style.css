@@ -66,6 +66,13 @@ body {
     overflow: hidden;
 }
 
+/* [수정] category-list-container와 prompt-list-container 레이아웃 수정 */
+.category-list-container {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
 .prompt-list-container {
     flex-grow: 1;
     display: flex;
@@ -91,6 +98,7 @@ body {
     align-items: center;
     padding: 1rem;
     flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color); /* 헤더 구분선 추가 */
 }
 
 #app-title {
@@ -149,41 +157,42 @@ body {
 }
 
 
-/* 신규 카테고리 탭 */
-.category-tabs {
-    padding: 0.5rem 1rem;
+/* [삭제] 기존 .category-tabs 관련 스타일 제거 */
+
+/* [신규] 세로 카테고리 목록 스타일 */
+.category-list-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+}
+.category-list {
     display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
+    flex-direction: column;
+    padding: 0 0.5rem; /* 좌우 패딩 */
 }
-.category-tabs::-webkit-scrollbar {
-    height: 4px;
-}
-.category-tabs::-webkit-scrollbar-thumb {
-    background-color: var(--bg-tertiary);
-    border-radius: 4px;
-}
-.category-tabs button {
-    padding: 0.5rem 1rem;
+.category-list .category-item {
+    width: 100%;
+    padding: 0.75rem 1.5rem;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 500;
     border: none;
     transition: var(--transition-fast);
-    white-space: nowrap;
-    background-color: var(--bg-tertiary);
+    background-color: transparent;
     color: var(--text-secondary);
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.category-tabs button:hover {
+.category-list .category-item:hover {
     background-color: var(--bg-primary);
     color: var(--text-primary);
 }
-.category-tabs button.active {
-    background-color: var(--primary-color);
-    color: white;
+.category-list .category-item.active {
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 

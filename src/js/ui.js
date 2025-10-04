@@ -9,7 +9,7 @@ class UI {
         this.elements = {
             appTitle: document.getElementById('app-title'),
             favicon: document.querySelector("link[rel*='icon']"),
-            categoryTabs: document.getElementById('category-tabs'),
+            categoryList: document.getElementById('category-list'),
             promptListContainer: document.getElementById('prompt-list-container'),
             promptList: document.getElementById('prompt-list'),
             promptDetailContainer: document.getElementById('prompt-detail-container'),
@@ -48,7 +48,7 @@ class UI {
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
         this.elements.sortModeBtn.addEventListener('click', () => this.store.enterSortMode());
 
-        this.elements.categoryTabs.addEventListener('click', (e) => {
+        this.elements.categoryList.addEventListener('click', (e) => {
             const button = e.target.closest('button[data-id]');
             if (button) this.store.selectCategory(button.dataset.id === 'all' || button.dataset.id === 'unsorted' ? button.dataset.id : parseInt(button.dataset.id));
         });
@@ -145,11 +145,11 @@ class UI {
         }, 1500);
     }
 
-    // --- 이하 렌더링 관련 함수 (변경 없음) ---
+    // --- 이하 렌더링 관련 함수 ---
 
     render(state) {
         if (!state) state = this.store.getState();
-        this.renderCategoryTabs(state);
+        this.renderCategoryList(state);
         this.elements.promptListContainer.classList.remove('inactive');
         switch(state.viewMode) {
             case 'sort': this.renderSortModeView(state); break;
@@ -158,16 +158,16 @@ class UI {
         }
     }
 
-    renderCategoryTabs({ categories, prompts, currentCategoryId }) {
+    renderCategoryList({ categories, prompts, currentCategoryId }) {
         const unsortedCount = prompts.filter(p => !p.categoryId).length;
         
-        let tabsHtml = `
-            <button data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>
-            <button data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</button>
-            ${categories.map(cat => `<button data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</button>`).join('')}
-        `;
-        this.elements.categoryTabs.innerHTML = tabsHtml;
+        const allPromptsHtml = `<button data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>`;
+        const unsortedHtml = `<button data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}"><span>미분류</span><span class="badge">${unsortedCount}</span></button>`;
+        const categoriesHtml = categories.map(cat => `<button data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</button>`).join('');
+        
+        this.elements.categoryList.innerHTML = allPromptsHtml + unsortedHtml + categoriesHtml;
 
+        // 푸터에 있는 뱃지는 계속 업데이트
         this.elements.unsortedCountBadge.textContent = unsortedCount;
         this.elements.sortModeBtn.classList.toggle('highlight', unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS);
     }
