@@ -19,6 +19,7 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
+        this.debounceTimer = null; // 자동 저장을 위한 디바운스 타이머
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -61,7 +62,9 @@ class UI {
                 this.store.selectPrompt(parseInt(promptCard.dataset.id));
                 return;
             }
-            
+        });
+        
+        this.elements.promptDetailContainer.addEventListener('click', (e) => {
             const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
             if (suggestionBtn) {
                 this.handleSortModeAction(suggestionBtn.dataset.catId);
@@ -71,10 +74,7 @@ class UI {
             if (e.target.closest('#exit-sort-mode-btn')) {
                 this.store.exitSortMode();
             }
-        });
 
-        // 프롬프트 상세 뷰 액션 버튼 클릭 (이벤트 위임)
-        this.elements.promptDetailContainer.addEventListener('click', (e) => {
             const targetId = e.target.closest('button')?.id;
             switch(targetId) {
                 case 'generate-ai-draft-btn':
@@ -88,20 +88,47 @@ class UI {
                     break;
             }
         });
+
+        // 프롬프트 상세 뷰 자동 저장을 위한 이벤트 리스너 (이벤트 위임)
+        this.elements.promptDetailContainer.addEventListener('input', (e) => {
+            if (e.target.id === 'prompt-content-editor') {
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => {
+                    this.store.updateSelectedPromptContent(e.target.value);
+                }, 300); // 300ms 디바운스
+            }
+        });
     }
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
     render(state) {
         if (!state) state = this.store.getState();
         
+        const mainContent = document.querySelector('.main-content');
+        
         this.renderSidebar(state);
         
         if (state.viewMode === 'sort') {
-            this.elements.promptDetailContainer.innerHTML = '';
-            this.elements.promptDetailContainer.style.display = 'none';
-            this.renderSortModeView(state);
+            mainContent.innerHTML = ''; // 기존 list, detail 컨테이너 제거
+            this.renderSortModeView(state, mainContent);
         } else {
-            this.elements.promptDetailContainer.style.display = 'block';
+            // viewMode가 list일 경우, HTML 구조를 다시 설정
+            mainContent.innerHTML = `
+                <section id="prompt-list-container" class="prompt-list-container">
+                    <header class="list-header">
+                        <h2 id="current-category-title"></h2>
+                        <span id="prompt-count"></span>
+                    </header>
+                    <div id="prompt-list" class="prompt-list"></div>
+                </section>
+                <section id="prompt-detail-container" class="prompt-detail-container"></section>
+            `;
+            // 다시 DOM 요소를 캐싱해야 함
+            this.elements.promptList = document.getElementById('prompt-list');
+            this.elements.promptDetailContainer = document.getElementById('prompt-detail-container');
+            this.elements.currentCategoryTitle = document.getElementById('current-category-title');
+            this.elements.promptCount = document.getElementById('prompt-count');
+
             this.renderListView(state);
         }
     }
@@ -178,28 +205,46 @@ class UI {
             return;
         }
 
-        const contentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
-            ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
-            : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
+        const isEditMode = !selectedPrompt.aiDraftContent && !isLoading;
+
+        let detailContentHtml = '';
+        if (isEditMode) {
+            detailContentHtml = `
+                <textarea id="prompt-content-editor" class="prompt-content-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>
+            `;
+        } else {
+            const readOnlyContent = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+                ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
+                : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
+
+            detailContentHtml = `
+                ${readOnlyContent}
+                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !isLoading ? 'hidden' : ''}">
+                    ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
+                </div>
+            `;
+        }
 
         this.elements.promptDetailContainer.innerHTML = `
             <div id="detail-view">
                 <div class="detail-header">
                     <small>최종 수정: ${new Date(selectedPrompt.updatedAt).toLocaleString()}</small>
                     <div class="detail-header-actions">
-                        <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>
+                         <button id="generate-ai-draft-btn" ${isLoading}>
                             ${isLoading ? '생성 중...' : '✨ AI 초안 생성'}
                         </button>
                         <button id="delete-prompt-btn">삭제</button>
                     </div>
                 </div>
-                ${contentHtml}
-                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !isLoading ? 'hidden' : ''}">
-                    ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
-                </div>
+                ${detailContentHtml}
             </div>`;
         
-        if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
+        if (isEditMode) {
+            const editor = document.getElementById('prompt-content-editor');
+            editor.focus();
+            // 커서를 텍스트 끝으로 이동
+            editor.selection.start = editor.selection.end = editor.value.length;
+        } else if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
     }
@@ -211,7 +256,7 @@ class UI {
                 <span class="sparkle">✨</span> 전략가 AI 추천 초안
             </div>
             <div class="prompt-content-view">${marked.parse(prompt.aiDraftContent)}</div>
-            <div class="detail-header-actions" style="margin-top: 1rem;">
+            <div class="detail-header-actions" style="margin-top: 1rem; justify-content: flex-end;">
                 <button id="confirm-ai-draft-btn">이 버전으로 확정하기</button>
             </div>
         `;
@@ -225,25 +270,22 @@ class UI {
         `;
     }
 
-    renderSortModeView({ prompts, categories }) {
+    renderSortModeView({ prompts, categories }, container) {
         const unsortedPrompts = prompts.filter(p => !p.categoryId);
         
+        let contentHtml = '';
         if (unsortedPrompts.length === 0) {
-            this.elements.promptList.innerHTML = `
-                <div id="sort-mode-view" class="placeholder">
+            contentHtml = `
+                <div class="placeholder">
                     <h2>${APP_CONFIG.UI_TEXTS.EMPTY_SORT_MODE_MESSAGE}</h2>
-                    <button id="exit-sort-mode-btn">돌아가기</button>
+                    <button id="exit-sort-mode-btn" class="sidebar-btn" style="margin-top: 1rem; padding: 0.5rem 1rem;">돌아가기</button>
                 </div>`;
-            return;
-        }
-
-        const currentPrompt = unsortedPrompts[0];
-        const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
-
-        this.elements.promptList.innerHTML = `
-            <div id="sort-mode-view">
+        } else {
+            const currentPrompt = unsortedPrompts[0];
+            const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
+            contentHtml = `
                 <h2>${APP_CONFIG.UI_TEXTS.SORT_MODE_TITLE} (${unsortedPrompts.length})</h2>
-                <p>${APP_CONFIG.UI_TEXTS.SORT_MODE_PROMPT}</p>
+                <p style="margin-bottom: 2rem;">${APP_CONFIG.UI_TEXTS.SORT_MODE_PROMPT}</p>
                 <div class="sort-card">
                     <div class="sort-card-content">${sanitizeHTML(currentPrompt.content)}</div>
                     <div class="category-suggestions">
@@ -251,8 +293,11 @@ class UI {
                         <button class="category-suggestion-btn" data-cat-id="new">직접 입력...</button>
                     </div>
                 </div>
-                <button id="exit-sort-mode-btn">정리 끝내기</button>
-            </div>`;
+                <button id="exit-sort-mode-btn" class="sidebar-btn" style="margin-top: 1rem; padding: 0.5rem 1rem;">정리 끝내기</button>
+            `;
+        }
+        
+        container.innerHTML = `<div id="sort-mode-view">${contentHtml}</div>`;
     }
 
     handleSortModeAction(categoryId) {

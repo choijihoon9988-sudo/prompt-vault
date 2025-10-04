@@ -233,15 +233,22 @@ body {
 
 #detail-view {
     animation: fadeIn 0.5s var(--ease-out-quart);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 .detail-header {
     margin-bottom: 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
+}
+.detail-header-actions {
+    display: flex;
+    gap: 0.5rem;
 }
 .detail-header-actions button {
-    margin-left: 0.5rem;
     background: none;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
@@ -254,10 +261,14 @@ body {
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
 }
+.detail-header-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
 .prompt-content-editor {
     width: 100%;
-    min-height: 200px;
+    flex-grow: 1; /* 남은 공간을 모두 차지 */
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -265,7 +276,13 @@ body {
     font-family: 'D2Coding', monospace;
     font-size: 1rem;
     color: var(--text-primary);
-    resize: vertical;
+    resize: none;
+    outline: none;
+    transition: var(--transition-fast);
+}
+.prompt-content-editor:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
 }
 
 .prompt-content-view {
@@ -346,6 +363,7 @@ body {
     align-items: center;
     justify-content: center;
     height: 100%;
+    width: 100%;
     animation: fadeIn 0.5s var(--ease-out-quart);
 }
 .sort-card {

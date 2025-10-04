@@ -63,6 +63,7 @@ class Store {
             prompts: allPrompts,
             selectedPromptId: newId, // 새로 만든 프롬프트를 선택
             currentCategoryId: 'unsorted', // '미분류' 탭으로 즉시 이동
+            viewMode: 'list', // 편집을 위해 리스트 뷰로 강제
         });
     }
 
@@ -80,6 +81,7 @@ class Store {
             };
             await db.updatePrompt(updatedPrompt);
             const allPrompts = await db.getAllPrompts();
+            // 상태 업데이트 시, 현재 선택된 프롬프트가 사라지지 않도록 selectedPromptId를 유지
             this.setState({ prompts: allPrompts });
         }
     }
@@ -91,19 +93,12 @@ class Store {
 
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
-            try {
-                this.setState({ isLoading: true });
-                const draft = await services.getAIStrategistDraft(prompt.content);
-                const updatedPrompt = {...prompt, aiDraftContent: draft };
-                await db.updatePrompt(updatedPrompt);
-                const allPrompts = await db.getAllPrompts();
-                this.setState({ prompts: allPrompts });
-            } catch (error) {
-                console.error("AI Draft generation failed:", error);
-                alert("AI 초안 생성에 실패했습니다. API 키를 확인하거나 잠시 후 다시 시도해주세요.");
-            } finally {
-                this.setState({ isLoading: false });
-            }
+            this.setState({ isLoading: true });
+            const draft = await services.getAIStrategistDraft(prompt.content);
+            const updatedPrompt = {...prompt, aiDraftContent: draft };
+            await db.updatePrompt(updatedPrompt);
+            const allPrompts = await db.getAllPrompts();
+            this.setState({ prompts: allPrompts, isLoading: false });
         }
     }
 
@@ -113,7 +108,16 @@ class Store {
         if (!selectedPromptId) return;
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt && prompt.aiDraftContent) {
-            this.updateSelectedPromptContent(prompt.aiDraftContent);
+            const updatedContent = prompt.aiDraftContent;
+            const updatedPrompt = {
+               ...prompt,
+                content: updatedContent,
+                aiDraftContent: '', // 확정 후 AI 초안은 비움
+                updatedAt: new Date().toISOString(),
+            };
+            await db.updatePrompt(updatedPrompt);
+            const allPrompts = await db.getAllPrompts();
+            this.setState({ prompts: allPrompts });
         }
     }
 
