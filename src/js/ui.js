@@ -109,7 +109,6 @@ class UI {
             return;
         }
 
-        // [수정] 싱글클릭/더블클릭 로직 복구
         const contentView = e.target.closest('.original-panel .prompt-content-view');
         if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
             if (this.clickTimer) {
@@ -361,3 +360,5 @@ class UI {
 }
 
 export const ui = new UI();
+
+// [수정] 파일 끝에 있던 불필요한 닫는 중괄호 '}'를 제거했습니다.
