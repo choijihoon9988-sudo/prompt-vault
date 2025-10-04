@@ -78,6 +78,8 @@ body {
 
 .prompt-detail-container {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
     padding: 2rem;
 }
@@ -234,6 +236,9 @@ body {
 }
 
 #detail-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     animation: fadeIn 0.5s var(--ease-out-quart);
 }
 .detail-header {
@@ -241,6 +246,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 .detail-header-actions button {
     margin-left: 0.5rem;
@@ -256,6 +262,47 @@ body {
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
 }
+/* [신규] 좌우 분할 비교 UI 스타일 */
+.detail-split-container {
+    display: flex;
+    gap: 1.5rem;
+    flex-grow: 1;
+    overflow: hidden;
+}
+.prompt-view-panel {
+    width: 50%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.prompt-view-panel h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-tertiary);
+}
+.prompt-content-wrapper {
+    padding: 1.25rem;
+    overflow-y: auto;
+    height: 100%;
+}
+.ai-draft-panel .placeholder {
+    font-size: 0.9rem;
+}
+#confirm-ai-draft-btn {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+#confirm-ai-draft-btn:hover {
+    background-color: var(--primary-color-hover);
+}
+
 
 .prompt-content-editor {
     width: 100%;
@@ -272,8 +319,8 @@ body {
 
 .prompt-content-view {
     line-height: 1.7;
-    /* [수정] 사용자가 편집할 수 있음을 암시하도록 커서 변경 */
-    cursor: pointer; 
+    /* [수정] 인라인 편집 비활성화로 커서 스타일 제거 */
+    /* cursor: pointer; */
 }
 
 .prompt-content-view h1,.prompt-content-view h2,.prompt-content-view h3 {
@@ -289,7 +336,7 @@ body {
     margin-bottom: 1em;
 }
 .prompt-content-view pre {
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-primary); /* 수정: 배경색 변경 */
     padding: 1rem;
     border-radius: 8px;
     overflow-x: auto;
@@ -316,9 +363,7 @@ body {
 }
 
 .ai-draft-container {
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 1px dashed var(--border-color);
+    margin-top: 1rem;
 }
 .ai-draft-header {
     display: flex;

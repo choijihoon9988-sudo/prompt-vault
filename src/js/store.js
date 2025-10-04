@@ -46,12 +46,12 @@ class Store {
         this.setState({ selectedPromptId: promptId, viewMode: 'list' });
     }
 
-    // [수정] '새 프롬프트 생성' 시, '캡처 모드'로 진입
+    // '새 프롬프트 생성' 시, '캡처 모드'로 진입
     createNewPrompt() {
         this.setState({ viewMode: 'capture', selectedPromptId: null });
     }
     
-    // [신규] '캡처 모드'에서 입력된 프롬프트를 저장
+    // '캡처 모드'에서 입력된 프롬프트를 저장
     async saveCapturedPrompt(content) {
         if (!content || content.trim() === '') {
             this.exitCaptureMode();
@@ -76,7 +76,7 @@ class Store {
         });
     }
 
-    // [신규] '캡처 모드' 취소
+    // '캡처 모드' 취소
     exitCaptureMode() {
         this.setState({ viewMode: 'list' });
     }
@@ -121,7 +121,16 @@ class Store {
         if (!selectedPromptId) return;
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt && prompt.aiDraftContent) {
-            this.updateSelectedPromptContent(prompt.aiDraftContent);
+            // [수정] content를 aiDraftContent로 업데이트하고, aiDraftContent는 비움
+            const updatedPrompt = {
+               ...prompt,
+                content: prompt.aiDraftContent,
+                aiDraftContent: '', // AI 초안을 비워서 오른쪽 패널을 숨김
+                updatedAt: new Date().toISOString(),
+            };
+            await db.updatePrompt(updatedPrompt);
+            const allPrompts = await db.getAllPrompts();
+            this.setState({ prompts: allPrompts });
         }
     }
 

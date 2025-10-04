@@ -20,8 +20,8 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        // [신규] 편집 중인 프롬프트 ID를 추적하기 위한 로컬 상태
-        this.editingPromptId = null;
+        // [삭제] 분할 뷰 도입으로 인라인 편집 기능 일시 비활성화
+        // this.editingPromptId = null; 
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -61,26 +61,15 @@ class UI {
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
-                // [수정] 다른 프롬프트 선택 시, 기존 편집모드 해제 및 저장
-                this.saveEditingPrompt(); 
                 this.store.selectPrompt(parseInt(promptCard.dataset.id));
             }
         });
         
-        // 메인 컨텐츠 영역 클릭 (이벤트 위임) - 정리 모드, 상세 뷰
+        // 메인 컨텐츠 영역 클릭 (이벤트 위임) - 상세 뷰, 정리 모드
         this.elements.promptDetailContainer.addEventListener('click', (e) => {
-             // [신규] 프롬프트 내용 클릭 시 편집 모드로 전환
-             const contentView = e.target.closest('.prompt-content-view');
-             if (contentView) {
-                 this.editingPromptId = this.store.getState().selectedPromptId;
-                 this.render(); // 편집 모드로 리렌더링
-                 return;
-             }
-
              const targetId = e.target.closest('button')?.id;
              switch(targetId) {
                  case 'generate-ai-draft-btn':
-                     this.saveEditingPrompt();
                      this.store.generateAIDraft();
                      break;
                  case 'delete-prompt-btn':
@@ -100,36 +89,11 @@ class UI {
                  return;
              }
         });
-
-        // [신규] 편집창에서 포커스가 벗어날 때(blur) 자동 저장
-        this.elements.promptDetailContainer.addEventListener('focusout', (e) => {
-            if (e.target.matches('.prompt-content-editor')) {
-                this.saveEditingPrompt();
-            }
-        });
     }
-    
-    // [신규] 편집 중인 프롬프트 내용을 저장하는 헬퍼 함수
-    saveEditingPrompt() {
-        if (this.editingPromptId === null) return;
-
-        const editor = this.elements.promptDetailContainer.querySelector('.prompt-content-editor');
-        if (editor) {
-            const newContent = editor.value;
-            this.store.updateSelectedPromptContent(newContent);
-        }
-        this.editingPromptId = null;
-    }
-
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
     render(state) {
         if (!state) state = this.store.getState();
-
-        // [수정] 다른 카테고리 선택 시, 편집모드 해제 및 저장
-        if (this.editingPromptId !== null && this.editingPromptId !== state.selectedPromptId) {
-            this.saveEditingPrompt();
-        }
         
         this.renderSidebar(state);
         
@@ -207,7 +171,7 @@ class UI {
         this.renderDetailView(state);
     }
 
-    // 상세 뷰 렌더링
+    // [대폭 수정] 상세 뷰를 좌우 분할 레이아웃으로 렌더링
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
@@ -221,15 +185,17 @@ class UI {
             return;
         }
 
-        // [수정] 편집 모드 여부에 따라 다른 HTML을 렌더링
-        const isEditing = this.editingPromptId === selectedPrompt.id;
-        let contentHtml = '';
-        if (isEditing) {
-            contentHtml = `<textarea class="prompt-content-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>`;
+        const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+            ? marked.parse(selectedPrompt.content)
+            : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
+        
+        let aiDraftContentHtml = '';
+        if (isLoading) {
+            aiDraftContentHtml = this.renderAIDraftLoading();
+        } else if (selectedPrompt.aiDraftContent) {
+            aiDraftContentHtml = this.renderAIDraft(selectedPrompt);
         } else {
-            contentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
-                ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
-                : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
+            aiDraftContentHtml = this.renderAIDraftPlaceholder();
         }
 
         this.elements.promptDetailContainer.innerHTML = `
@@ -243,40 +209,57 @@ class UI {
                         <button id="delete-prompt-btn">삭제</button>
                     </div>
                 </div>
-                ${contentHtml}
-                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !isLoading ? 'hidden' : ''}">
-                    ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
+
+                <div class="detail-split-container">
+                    <div class="prompt-view-panel original-panel">
+                        <h3>원본</h3>
+                        <div class="prompt-content-wrapper">
+                            <div class="prompt-content-view">${originalContentHtml}</div>
+                        </div>
+                    </div>
+                    <div class="prompt-view-panel ai-draft-panel">
+                        <h3>✨ 전략가 AI 추천 초안</h3>
+                        <div class="prompt-content-wrapper">
+                            ${aiDraftContentHtml}
+                        </div>
+                    </div>
                 </div>
             </div>`;
-        
-        // [수정] 편집 모드일 경우, textarea에 자동으로 포커스
-        if (isEditing) {
-            const editor = this.elements.promptDetailContainer.querySelector('.prompt-content-editor');
-            if(editor) editor.focus();
-        }
         
         if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
     }
     
+    // AI 추천 초안 뷰 렌더링
     renderAIDraft(prompt) {
         if (!prompt.aiDraftContent) return '';
+        const draftHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+            ? marked.parse(prompt.aiDraftContent)
+            : `<pre>${sanitizeHTML(prompt.aiDraftContent)}</pre>`;
+
         return `
-            <div class="ai-draft-header">
-                <span class="sparkle">✨</span> 전략가 AI 추천 초안
-            </div>
-            <div class="prompt-content-view">${marked.parse(prompt.aiDraftContent)}</div>
-            <div class="detail-header-actions" style="margin-top: 1rem;">
+            <div class="prompt-content-view">${draftHtml}</div>
+            <div class="ai-draft-container">
                 <button id="confirm-ai-draft-btn">이 버전으로 확정하기</button>
             </div>
         `;
     }
 
+    // AI 초안 로딩 스피너 렌더링
     renderAIDraftLoading() {
         return `
             <div class="ai-draft-header">
                 <div class="loading-spinner"></div> AI가 초안을 생성하는 중...
+            </div>
+        `;
+    }
+
+    // AI 초안이 없을 때의 플레이스홀더 렌더링
+    renderAIDraftPlaceholder() {
+        return `
+            <div class="placeholder">
+                <p>버튼을 눌러 AI 추천 초안을 생성하고<br>당신의 아이디어를 지적 자산으로 바꿔보세요.</p>
             </div>
         `;
     }
@@ -323,7 +306,7 @@ class UI {
         }
 
         const currentPrompt = unsortedPrompts[0];
-        const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
+        const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, 3);
 
         this.elements.promptDetailContainer.innerHTML = `
             <div id="sort-mode-view">
