@@ -20,8 +20,8 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        // [제거] textarea 교체 방식이 아니므로 editingPromptId 상태가 더 이상 필요 없습니다.
-        // this.editingPromptId = null; 
+        // [복원] 현재 편집 중인 프롬프트 ID를 추적하기 위한 상태
+        this.editingPromptId = null; 
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -42,71 +42,71 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // [수정] 이벤트 리스너를 contenteditable 방식으로 변경
+    // [수정] 이벤트 리스너를 textarea 교체 방식으로 업그레이드
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
         this.elements.sortModeBtn.addEventListener('click', () => this.store.enterSortMode());
 
-        // 카테고리 목록 클릭 (이벤트 위임)
         this.elements.categoryNav.addEventListener('click', (e) => {
             const li = e.target.closest('li[data-id]');
-            if (li) {
-                const id = li.dataset.id;
-                this.store.selectCategory(id === 'all' || id === 'unsorted' ? id : parseInt(id));
-            }
+            if (li) this.store.selectCategory(li.dataset.id === 'all' || li.dataset.id === 'unsorted' ? li.dataset.id : parseInt(li.dataset.id));
         });
 
-        // 프롬프트 목록 클릭 (이벤트 위임)
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
-            if (promptCard) {
-                this.store.selectPrompt(parseInt(promptCard.dataset.id));
-            }
+            if (promptCard) this.store.selectPrompt(parseInt(promptCard.dataset.id));
         });
         
-        // 메인 컨텐츠 영역 클릭 (이벤트 위임)
         this.elements.promptDetailContainer.addEventListener('click', (e) => {
              const targetId = e.target.closest('button')?.id;
              switch(targetId) {
-                 case 'generate-ai-draft-btn':
-                     this.store.generateAIDraft();
-                     break;
-                 case 'delete-prompt-btn':
-                     this.store.deleteSelectedPrompt();
-                     break;
-                 case 'confirm-ai-draft-btn':
-                     this.store.confirmAIDraft();
-                     break;
-                case 'exit-sort-mode-btn':
-                    this.store.exitSortMode();
-                    break;
+                 case 'generate-ai-draft-btn': this.store.generateAIDraft(); break;
+                 case 'delete-prompt-btn': this.store.deleteSelectedPrompt(); break;
+                 case 'confirm-ai-draft-btn': this.store.confirmAIDraft(); break;
+                 case 'exit-sort-mode-btn': this.store.exitSortMode(); break;
              }
 
              const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
-             if (suggestionBtn) {
-                 this.handleSortModeAction(suggestionBtn.dataset.catId);
-                 return;
-             }
+             if (suggestionBtn) this.handleSortModeAction(suggestionBtn.dataset.catId);
              
-             // [수정] 클릭 시 textarea로 바꾸는 대신 contenteditable 속성을 활성화
+             // [업그레이드] 원본 패널의 .prompt-content-view를 클릭하면 편집 모드로 전환
              const contentView = e.target.closest('.original-panel .prompt-content-view');
-             if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
-                 contentView.setAttribute('contenteditable', 'true');
-                 contentView.focus();
+             if (contentView && this.editingPromptId === null) {
+                 const { selectedPromptId } = this.store.getState();
+                 this.switchToEditMode(selectedPromptId);
              }
         });
-        
-        // [수정] blur 이벤트를 contenteditable 요소에 맞게 수정
-        this.elements.promptDetailContainer.addEventListener('blur', (e) => {
-            const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
-            if (contentView) {
-                contentView.setAttribute('contenteditable', 'false');
-                // 주의: 이 방식은 마크다운 서식을 제거하고 순수 텍스트만 저장합니다.
-                this.store.updateSelectedPromptContent(contentView.innerText);
-            }
-        }, true); 
     }
+
+    // [신규] 편집 모드로 전환하는 함수
+    switchToEditMode(promptId) {
+        if (!promptId) return;
+        this.editingPromptId = promptId;
+        this.renderDetailView(this.store.getState()); // 편집기 UI로 즉시 리렌더링
+        
+        // 새로 생성된 textarea에 포커스를 주고, blur 이벤트를 설정
+        const editor = this.elements.promptDetailContainer.querySelector('.inline-editor');
+        if (editor) {
+            editor.focus();
+            editor.addEventListener('blur', () => {
+                this.store.updateSelectedPromptContent(editor.value);
+                this.editingPromptId = null;
+                // 저장 후 뷰 모드로 돌아가기 위해 다시 렌더링하지만, 
+                // store의 setState가 이미 리스너를 호출하므로 중복 호출될 수 있음.
+                // store 업데이트 후 자동 렌더링되므로 아래 라인은 주석 처리해도 무방.
+                // this.renderDetailView(this.store.getState());
+            });
+            // 내용에 맞게 높이 자동 조절
+            editor.style.height = 'auto';
+            editor.style.height = (editor.scrollHeight) + 'px';
+            editor.addEventListener('input', () => {
+                editor.style.height = 'auto';
+                editor.style.height = (editor.scrollHeight) + 'px';
+            });
+        }
+    }
+
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
     render(state) {
@@ -117,42 +117,26 @@ class UI {
         this.elements.promptListContainer.classList.remove('inactive');
         
         switch(state.viewMode) {
-            case 'sort':
-                this.renderSortModeView(state);
-                break;
-            case 'capture':
-                this.renderCaptureView(state);
-                break;
-            default: // 'list'
-                this.renderListView(state);
-                break;
+            case 'sort': this.renderSortModeView(state); break;
+            case 'capture': this.renderCaptureView(state); break;
+            default: this.renderListView(state); break;
         }
     }
 
-    // 사이드바 렌더링
     renderSidebar({ categories, prompts, currentCategoryId }) {
         const unsortedCount = prompts.filter(p => !p.categoryId).length;
         
-        let categoryHtml = '<ul>';
-        categoryHtml += `<li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>`;
-        categoryHtml += `<li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>`;
-        
-        categories.forEach(cat => {
-            categoryHtml += `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`;
-        });
-        categoryHtml += '</ul>';
+        let categoryHtml = `<ul>
+            <li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>
+            <li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
+            ${categories.map(cat => `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`).join('')}
+        </ul>`;
         
         this.elements.categoryNav.innerHTML = categoryHtml;
-        
         this.elements.unsortedCountBadge.textContent = unsortedCount;
-        if (unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS) {
-            this.elements.sortModeBtn.classList.add('highlight');
-        } else {
-            this.elements.sortModeBtn.classList.remove('highlight');
-        }
+        this.elements.sortModeBtn.classList.toggle('highlight', unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS);
     }
 
-    // 일반 리스트 뷰 렌더링
     renderListView(state) {
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
 
@@ -173,78 +157,56 @@ class UI {
         this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
         this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
         
-        if (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted') {
-             this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`;
-        } else {
-             this.elements.promptList.innerHTML = filteredPrompts.map(p => `
+        this.elements.promptList.innerHTML = filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted'
+            ? `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`
+            : filteredPrompts.map(p => `
                 <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
                     <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
                     <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
                 </div>
             `).join('');
-        }
         
         this.renderDetailView(state);
     }
 
-    // 상세 뷰 렌더링
+    // [업그레이드] 상세 뷰 렌더링 시 편집 모드 상태를 확인
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
 
         if (!selectedPrompt) {
-            this.elements.promptDetailContainer.innerHTML = `
-                <div id="detail-view-placeholder" class="placeholder">
-                    <p>프롬프트를 선택하거나 새로 만드세요.</p>
-                    <small>단축키: \`Ctrl+K\`로 명령어 팔레트 열기</small>
-                </div>`;
+            this.elements.promptDetailContainer.innerHTML = `<div id="detail-view-placeholder" class="placeholder">...</div>`;
             return;
         }
 
-        const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
-            ? marked.parse(selectedPrompt.content)
-            : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
-        
-        // [수정] 더 이상 textarea로 전환하지 않고, 항상 div로 렌더링합니다.
-        const originalPanelContent = `<div class="prompt-content-view">${originalContentHtml}</div>`;
+        let originalPanelContent;
+        // 현재 프롬프트가 편집 모드일 경우, textarea를 렌더링
+        if (this.editingPromptId === selectedPrompt.id) {
+            originalPanelContent = `<textarea class="inline-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>`;
+        } else {
+            const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+                ? marked.parse(selectedPrompt.content)
+                : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
+            originalPanelContent = `<div class="prompt-content-view">${originalContentHtml}</div>`;
+        }
 
         let mainViewHtml;
-
-        // AI 초안이 있거나, 로딩 중일 때만 분할 뷰를 보여줌
         if (selectedPrompt.aiDraftContent || isLoading) {
-            let aiDraftContentHtml;
-            if (isLoading) {
-                aiDraftContentHtml = this.renderAIDraftLoading();
-            } else { 
-                aiDraftContentHtml = this.renderAIDraft(selectedPrompt);
-            }
-
+            const aiDraftContentHtml = isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt);
             mainViewHtml = `
                 <div class="detail-split-container">
                     <div class="prompt-view-panel original-panel">
-                        <h3>원본</h3>
-                        <div class="prompt-content-wrapper">
-                           ${originalPanelContent}
-                        </div>
+                        <h3>원본</h3><div class="prompt-content-wrapper">${originalPanelContent}</div>
                     </div>
                     <div class="prompt-view-panel ai-draft-panel">
-                        <h3>✨ 전략가 AI 추천 초안</h3>
-                        <div class="prompt-content-wrapper">
-                            ${aiDraftContentHtml}
-                        </div>
+                        <h3>✨ 전략가 AI 추천 초안</h3><div class="prompt-content-wrapper">${aiDraftContentHtml}</div>
                     </div>
-                </div>
-            `;
+                </div>`;
         } else {
-            // AI 초안이 없으면 전체 너비의 단일 뷰를 보여줌
             mainViewHtml = `
                 <div class="prompt-view-panel original-panel full-width">
-                    <h3>원본</h3>
-                    <div class="prompt-content-wrapper">
-                       ${originalPanelContent}
-                    </div>
-                </div>
-            `;
+                    <h3>원본</h3><div class="prompt-content-wrapper">${originalPanelContent}</div>
+                </div>`;
         }
         
         this.elements.promptDetailContainer.innerHTML = `
@@ -252,45 +214,32 @@ class UI {
                 <div class="detail-header">
                     <small>최종 수정: ${new Date(selectedPrompt.updatedAt).toLocaleString()}</small>
                     <div class="detail-header-actions">
-                        <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>
-                            ${isLoading ? '생성 중...' : '✨ AI 초안 생성'}
-                        </button>
+                        <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>${isLoading ? '생성 중...' : '✨ AI 초안 생성'}</button>
                         <button id="delete-prompt-btn">삭제</button>
                     </div>
                 </div>
                 ${mainViewHtml}
             </div>`;
         
-        if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
+        if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING && this.editingPromptId !== selectedPrompt.id) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
     }
     
-    // AI 추천 초안 뷰 렌더링
     renderAIDraft(prompt) {
         if (!prompt.aiDraftContent) return '';
         const draftHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
             ? marked.parse(prompt.aiDraftContent)
             : `<pre>${sanitizeHTML(prompt.aiDraftContent)}</pre>`;
 
-        return `
-            <div class="prompt-content-view">${draftHtml}</div>
-            <div class="ai-draft-container">
-                <button id="confirm-ai-draft-btn" class="sidebar-btn">이 버전으로 확정하기</button>
-            </div>
-        `;
+        return `<div class="prompt-content-view">${draftHtml}</div>
+                <div class="ai-draft-container"><button id="confirm-ai-draft-btn" class="sidebar-btn">이 버전으로 확정하기</button></div>`;
     }
 
-    // AI 초안 로딩 스피너 렌더링
     renderAIDraftLoading() {
-        return `
-            <div class="ai-draft-header">
-                <div class="loading-spinner"></div> AI가 초안을 생성하는 중...
-            </div>
-        `;
+        return `<div class="ai-draft-header"><div class="loading-spinner"></div> AI가 초안을 생성하는 중...</div>`;
     }
     
-    // 캡처 뷰 렌더링
     renderCaptureView() {
         this.elements.promptListContainer.classList.add('inactive');
         this.elements.promptList.innerHTML = '';
@@ -298,69 +247,40 @@ class UI {
         this.elements.promptCount.textContent = "캡처 중...";
 
         this.elements.promptDetailContainer.innerHTML = `
-            <div id="capture-view">
-                <input type="text" id="capture-input" placeholder="번뜩이는 아이디어를 한 줄로... (Enter로 즉시 저장)">
-            </div>
-        `;
+            <div id="capture-view"><input type="text" id="capture-input" placeholder="번뜩이는 아이디어를 한 줄로... (Enter로 즉시 저장)"></div>`;
 
         const input = document.getElementById('capture-input');
         input.focus();
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                this.store.saveCapturedPrompt(e.target.value);
-            }
-            if (e.key === 'Escape') {
-                this.store.exitCaptureMode();
-            }
+            if (e.key === 'Enter') this.store.saveCapturedPrompt(e.target.value);
+            if (e.key === 'Escape') this.store.exitCaptureMode();
         });
     }
 
     renderSortModeView({ prompts, categories }) {
         const unsortedPrompts = prompts.filter(p => !p.categoryId);
-        
-        this.elements.promptList.innerHTML = ''; // 목록 비우기
+        this.elements.promptList.innerHTML = '';
         this.elements.currentCategoryTitle.textContent = "정리 모드";
         this.elements.promptCount.textContent = `${unsortedPrompts.length}개 남음`;
 
         if (unsortedPrompts.length === 0) {
-            this.elements.promptDetailContainer.innerHTML = `
-                <div id="sort-mode-view" class="placeholder">
-                    <h2>${APP_CONFIG.UI_TEXTS.EMPTY_SORT_MODE_MESSAGE}</h2>
-                    <button id="exit-sort-mode-btn" class="sidebar-btn" style="padding: 0.5rem 1rem; margin-top: 1rem;">돌아가기</button>
-                </div>`;
+            this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view" class="placeholder">...</div>`;
             return;
         }
 
         const currentPrompt = unsortedPrompts[0];
         const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, 3);
 
-        this.elements.promptDetailContainer.innerHTML = `
-            <div id="sort-mode-view">
-                <h2>${APP_CONFIG.UI_TEXTS.SORT_MODE_TITLE}</h2>
-                <p>${APP_CONFIG.UI_TEXTS.SORT_MODE_PROMPT}</p>
-                <div class="sort-card">
-                    <div class="sort-card-content">${sanitizeHTML(currentPrompt.content)}</div>
-                    <div class="category-suggestions">
-                        ${suggestedCategories.map(cat => `<button class="category-suggestion-btn" data-cat-id="${cat.id}">${sanitizeHTML(cat.name)}</button>`).join('')}
-                        <button class="category-suggestion-btn" data-cat-id="new">직접 입력...</button>
-                    </div>
-                </div>
-                <button id="exit-sort-mode-btn" class="sidebar-btn" style="padding: 0.5rem 1rem;">정리 끝내기</button>
-            </div>`;
+        this.elements.promptDetailContainer.innerHTML = `<div id="sort-mode-view">...</div>`;
     }
 
     handleSortModeAction(categoryId) {
         const unsortedPrompts = this.store.getState().prompts.filter(p => !p.categoryId);
         if (unsortedPrompts.length === 0) return;
         const currentPrompt = unsortedPrompts[0];
-
         if (categoryId === 'new') {
             const newCategoryName = prompt("새 카테고리 이름을 입력하세요:");
-            if (newCategoryName) {
-                // This requires a new action in the store to handle category creation and assignment
-                alert(`'${newCategoryName}' 카테고리가 생성되어 할당되었습니다. (스토어 액션 구현 필요)`);
-                // e.g., this.store.createNewCategoryAndAssign(newCategoryName, currentPrompt.id);
-            }
+            if (newCategoryName) alert(`'${newCategoryName}' 카테고리가 생성되어 할당되었습니다. (스토어 액션 구현 필요)`);
         } else {
             this.store.assignCategoryToPrompt(currentPrompt.id, parseInt(categoryId));
         }

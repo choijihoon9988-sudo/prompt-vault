@@ -312,21 +312,31 @@ body {
     background-color: var(--primary-color-hover);
 }
 
+/* [신규] 명세서의 모든 요구사항을 반영한 인라인 에디터 스타일 */
+.inline-editor {
+    width: 100%;
+    min-height: 200px; /* 최소 높이 유지 */
+    height: auto;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit; /* 부모 요소의 모든 폰트 관련 스타일 상속 */
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    resize: none; /* 크기 조절 핸들 숨김 */
+    outline: none; /* 포커스 시 외곽선 제거 */
+    overflow-y: hidden; /* 불필요한 스크롤바 숨김 */
+}
 
-/* [제거] textarea 에디터 스타일 제거 */
-/* .prompt-content-editor { ... } */
 
 .prompt-content-view {
     line-height: 1.7;
 }
 
-/* [수정] contenteditable을 위한 스타일 */
 .original-panel .prompt-content-view {
     cursor: text;
-}
-/* [추가] 편집 모드일 때 포커스 아웃라인을 제거하여 더 자연스럽게 만듭니다. */
-.prompt-content-view[contenteditable="true"]:focus {
-    outline: none;
 }
 
 
