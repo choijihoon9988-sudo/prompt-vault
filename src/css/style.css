@@ -87,6 +87,7 @@ body {
     flex-direction: column;
     overflow-y: auto;
     padding: 2rem;
+    position: relative; /* [신규] 자식 요소의 position: absolute 기준 */
 }
 
 /* === 컴포넌트 스타일 === */
@@ -487,53 +488,105 @@ body {
 }
 
 
-/* 정리 모드 */
+/* [수정] 지능형 정리 모드 v2 스타일 */
+.prompt-detail-container.sort-mode-active {
+    padding: 0;
+}
+
 #sort-mode-view {
-    padding: 2rem;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    height: 100%;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.sort-mode-loading,
+.sort-complete-message {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+}
+
+.sort-complete-message {
     animation: fadeIn 0.5s var(--ease-out-quart);
 }
+
 .sort-card {
     background-color: var(--bg-secondary);
     padding: 2rem;
     border-radius: 12px;
-    width: 100%;
+    width: 90%;
     max-width: 600px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    margin: 2rem 0;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     border: 1px solid var(--border-color);
+    animation: slideInUp 0.5s var(--ease-out-quart);
+    transition: transform 0.3s var(--ease-out-quart), opacity 0.3s var(--ease-out-quart);
 }
+
+.sort-card.fly-out-right {
+    animation: flyOutRight 0.5s var(--ease-out-quart) forwards;
+}
+
+.sort-card.fly-out-left {
+    animation: flyOutLeft 0.5s var(--ease-out-quart) forwards;
+}
+
 .sort-card-content {
-    max-height: 200px;
+    max-height: 50vh;
     overflow-y: auto;
     margin-bottom: 1.5rem;
     padding-right: 1rem; /* for scrollbar */
-    font-size: 0.9rem;
-    color: var(--text-secondary);
 }
+
+.sort-card-content h3 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.sort-card-content p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    white-space: pre-wrap; /* 줄바꿈 유지 */
+}
+
 .category-suggestions {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+    justify-content: center;
 }
+
 .category-suggestion-btn {
     background-color: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1.5rem;
     border-radius: 999px;
     cursor: pointer;
     transition: var(--transition-fast);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 1rem;
 }
 .category-suggestion-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.category-suggestion-btn.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+.category-suggestion-btn.best-suggestion {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
     color: white;
 }
+
 
 /* 커맨드 팔레트 */
 .command-palette-overlay {
@@ -612,7 +665,7 @@ body {
     color: white;
     font-weight: 600;
     z-index: 2000;
-    animation: slideInUp 0.3s var(--ease-out-quart);
+    animation: slideInUpToast 0.3s var(--ease-out-quart);
 }
 .toast.error {
     background-color: #EF4444; /* red-500 */
@@ -633,12 +686,34 @@ body {
 }
 @keyframes slideInUp {
     from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+@keyframes slideInUpToast {
+    from {
         transform: translateY(100%);
         opacity: 0;
     }
     to {
         transform: translateY(0);
         opacity: 1;
+    }
+}
+@keyframes flyOutRight {
+    to {
+        opacity: 0;
+        transform: translateX(100%) rotate(15deg);
+    }
+}
+@keyframes flyOutLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-100%) rotate(-15deg);
     }
 }
 .hidden {

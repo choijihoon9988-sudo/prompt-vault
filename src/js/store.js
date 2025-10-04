@@ -13,6 +13,8 @@ class Store {
             selectedPromptId: null,
             viewMode: 'list', // 'list' | 'sort' | 'capture'
             isLoading: false,
+            // [신규] 지능형 정리 모드를 위한 상태
+            currentSortPrompt: null, // { prompt: Object, suggestions: { best: string, second: string } }
         };
         this.listeners = []; // 상태 변경을 구독할 함수들의 배열
     }
@@ -146,29 +148,65 @@ class Store {
         this.setState({ prompts: allPrompts, selectedPromptId: null });
     }
 
-    // 정리 모드 진입
-    enterSortMode() {
-        const unsortedPrompts = this.state.prompts.filter(p =>!p.categoryId);
-        if (unsortedPrompts.length > 0) {
-            this.setState({ viewMode: 'sort', selectedPromptId: null });
-        } else {
+    // [수정] 지능형 정리 모드 진입
+    async enterSortMode() {
+        const { prompts, categories } = this.state;
+        const unsortedPrompts = prompts.filter(p => !p.categoryId);
+        if (unsortedPrompts.length === 0) {
             alert("정리할 프롬프트가 없습니다.");
+            return;
         }
+
+        this.setState({ viewMode: 'sort', selectedPromptId: null, isLoading: true });
+        
+        const firstPrompt = unsortedPrompts[0];
+        const suggestions = await services.getCategorySuggestions(firstPrompt.content, categories);
+        
+        this.setState({
+            currentSortPrompt: { prompt: firstPrompt, suggestions },
+            isLoading: false
+        });
     }
 
     // 리스트 뷰로 복귀
     exitSortMode() {
-        this.setState({ viewMode: 'list', currentCategoryId: 'all' });
+        this.setState({ viewMode: 'list', currentCategoryId: 'all', currentSortPrompt: null });
+    }
+    
+    // [신규] 분류 완료 후 잠시 메시지를 보여주고 복귀
+    exitSortModeAfterDelay() {
+        setTimeout(() => {
+            this.exitSortMode();
+        }, 1500); // 1.5초 후 복귀
     }
 
-    // 프롬프트 카테고리 지정 (정리 모드에서 사용)
-    async assignCategoryToPrompt(promptId, categoryId) {
-        const promptToUpdate = this.state.prompts.find(p => p.id === promptId);
+    // [수정] 프롬프트 카테고리 지정 후 다음 프롬프트로 이동
+    async assignCategoryAndGoNext(promptId, categoryName) {
+        const { prompts, categories } = this.state;
+        const category = categories.find(c => c.name === categoryName);
+        if (!category) return;
+
+        const promptToUpdate = prompts.find(p => p.id === promptId);
         if (promptToUpdate) {
-            const updatedPrompt = {...promptToUpdate, categoryId: categoryId, updatedAt: new Date().toISOString() };
+            const updatedPrompt = { ...promptToUpdate, categoryId: category.id, updatedAt: new Date().toISOString() };
             await db.updatePrompt(updatedPrompt);
+            
             const allPrompts = await db.getAllPrompts();
-            this.setState({ prompts: allPrompts });
+            const remainingUnsorted = allPrompts.filter(p => !p.categoryId);
+
+            this.setState({ prompts: allPrompts, isLoading: true });
+
+            if (remainingUnsorted.length > 0) {
+                const nextPrompt = remainingUnsorted[0];
+                const suggestions = await services.getCategorySuggestions(nextPrompt.content, categories);
+                this.setState({
+                    currentSortPrompt: { prompt: nextPrompt, suggestions },
+                    isLoading: false
+                });
+            } else {
+                this.setState({ currentSortPrompt: null, isLoading: false });
+                this.exitSortModeAfterDelay();
+            }
         }
     }
 }

@@ -13,11 +13,12 @@ export const APP_CONFIG = {
   UI_TEXTS: {
     MAIN_TITLE: "Prompt Vault",
     CAPTURE_PLACEHOLDER: "번뜩이는 아이디어를 여기에 기록하세요... (Ctrl+Enter로 저장)",
-    SORT_MODE_TITLE: "정리 모드",
+    SORT_MODE_TITLE: "정리할 프롬프트",
     SORT_MODE_PROMPT: "AI가 추천하는 카테고리로 프롬프트를 정리하세요.",
     EMPTY_PROMPTS_MESSAGE: "아직 프롬프트가 없습니다. 첫 아이디어를 기록해보세요!",
     EMPTY_SORT_MODE_MESSAGE: "정리할 프롬프트가 없습니다! ✨",
     COMMAND_PALETTE_PLACEHOLDER: "명령어 검색...",
+    SORT_MODE_COMPLETE_MESSAGE: "✨정리 완료",
   },
 
   // --- AI 서비스 설정 ---
@@ -52,6 +53,30 @@ export const APP_CONFIG = {
 ---
 
 ### ✨ 재창조된 전략 프롬프트
+`,
+    // [신규] 카테고리 추천을 위한 AI 프롬프트 템플릿
+    CATEGORY_SUGGESTION_PROMPT_TEMPLATE: `
+### 🎯 분석 목표
+사용자의 프롬프트 내용을 분석하여, 제시된 카테고리 목록 중에서 가장 적합한 **상위 2개**를 추천한다.
+
+### 👤 역할 부여
+너는 사용자의 생각을 완벽하게 이해하고 정리하는 AI 비서다.
+
+### 📚 분석 대상
+- **사용자 프롬프트:** {userInput}
+- **카테고리 목록:** {categoryList}
+
+### 📝 출력 형식 (JSON)
+- 반드시 다음의 JSON 형식과 키 이름을 준수해야 한다.
+- 가장 확률이 높은 추천 카테고리를 'best'에, 두 번째 추천을 'second'에 할당한다.
+- 절대로 다른 설명 없이 JSON 객체만 반환해야 한다.
+
+\`\`\`json
+{
+  "best": "추천 카테고리 1",
+  "second": "추천 카테고리 2"
+}
+\`\`\`
 `,
   },
 

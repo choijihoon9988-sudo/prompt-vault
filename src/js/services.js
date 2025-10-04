@@ -10,7 +10,6 @@ class Services {
     async getAIStrategistDraft(userInput) {
         const { API_KEY, MODEL_NAME, STRATEGIST_AI_PROMPT_TEMPLATE } = APP_CONFIG.AI_SERVICE;
 
-        // [수정 완료] 오류의 원인이었던 조건문을 올바르게 되돌렸습니다.
         if (!API_KEY || API_KEY === "YOUR_API_KEY") {
             console.error("API key not found. Please set your API key in config.js");
             return "## ⚠️ API 키 오류\n\n`src/config.js` 파일에 당신의 Google Gemini API 키를 입력해주세요.";
@@ -23,14 +22,8 @@ class Services {
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: fullPrompt }]
-                    }]
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
             });
 
             if (!response.ok) {
@@ -40,7 +33,6 @@ class Services {
             }
 
             const data = await response.json();
-            
             const draft = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
             if (!draft) {
@@ -53,6 +45,59 @@ class Services {
         } catch (error) {
             console.error("AI Draft generation failed:", error);
             return `## ❌ AI 초안 생성 실패\n\n오류가 발생했습니다: ${error.message}\n\n- API 키가 올바른지 확인해주세요.\n- 브라우저 개발자 콘솔(F12)에서 더 자세한 오류를 확인할 수 있습니다.`;
+        }
+    }
+
+    /**
+     * AI를 호출하여 프롬프트에 가장 적합한 카테고리 2개를 추천받습니다.
+     * @param {string} promptContent - 분석할 프롬프트의 내용
+     * @param {Array<Object>} categories - 전체 카테고리 목록
+     * @returns {Promise<Object>} 추천된 카테고리 { best: string, second: string }
+     */
+    async getCategorySuggestions(promptContent, categories) {
+        const { API_KEY, MODEL_NAME, CATEGORY_SUGGESTION_PROMPT_TEMPLATE } = APP_CONFIG.AI_SERVICE;
+
+        if (!API_KEY || API_KEY === "YOUR_API_KEY") {
+            console.error("API key not found.");
+            return { best: categories[0]?.name, second: categories[1]?.name };
+        }
+
+        const categoryList = categories.map(c => c.name).join(', ');
+        const fullPrompt = CATEGORY_SUGGESTION_PROMPT_TEMPLATE
+            .replace('{userInput}', promptContent)
+            .replace('{categoryList}', categoryList);
+
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+        
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
+            });
+
+            if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
+
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!rawText) throw new Error("Empty response from AI.");
+
+            // [수정] 더 안전한 JSON 추출 및 파싱
+            const match = rawText.match(/```json\s*([\s\S]*?)\s*```/);
+            const jsonString = match ? match[1] : rawText;
+            const suggestions = JSON.parse(jsonString);
+
+            const validCategories = categories.map(c => c.name);
+            if (!suggestions.best || !suggestions.second || !validCategories.includes(suggestions.best) || !validCategories.includes(suggestions.second)) {
+                throw new Error("AI recommended invalid or non-existent categories.");
+            }
+            
+            return suggestions;
+
+        } catch (error) {
+            console.error("AI Category Suggestion failed:", error);
+            const shuffled = [...categories].sort(() => 0.5 - Math.random());
+            return { best: shuffled[0]?.name, second: shuffled[1]?.name };
         }
     }
 }
