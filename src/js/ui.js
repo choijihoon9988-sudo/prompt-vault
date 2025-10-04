@@ -10,6 +10,7 @@ class UI {
             appTitle: document.getElementById('app-title'),
             favicon: document.querySelector("link[rel*='icon']"),
             categoryNav: document.getElementById('category-nav'),
+            promptListContainer: document.getElementById('prompt-list-container'),
             promptList: document.getElementById('prompt-list'),
             promptDetailContainer: document.getElementById('prompt-detail-container'),
             unsortedCountBadge: document.getElementById('unsorted-count-badge'),
@@ -19,7 +20,6 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        this.debounceTimer = null; // 자동 저장을 위한 디바운스 타이머
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -60,52 +60,32 @@ class UI {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
                 this.store.selectPrompt(parseInt(promptCard.dataset.id));
-                return;
             }
         });
         
-        // 상세 뷰 및 정렬 모드 클릭 (이벤트 위임)
-        document.body.addEventListener('click', (e) => {
-             // promptDetailContainer가 동적으로 교체되므로 body에서 위임 처리
-            const detailContainer = e.target.closest('.prompt-detail-container');
-            if(detailContainer) {
-                const targetId = e.target.closest('button')?.id;
-                switch(targetId) {
-                    case 'generate-ai-draft-btn':
-                        this.store.generateAIDraft();
-                        break;
-                    case 'delete-prompt-btn':
-                        this.store.deleteSelectedPrompt();
-                        break;
-                    case 'confirm-ai-draft-btn':
-                        this.store.confirmAIDraft();
-                        break;
-                }
-            }
-
-            // sortModeView가 동적으로 교체되므로 body에서 위임 처리
-            const sortModeContainer = e.target.closest('#sort-mode-view');
-            if(sortModeContainer) {
-                const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
-                if (suggestionBtn) {
-                    this.handleSortModeAction(suggestionBtn.dataset.catId);
-                    return;
-                }
-
-                if (e.target.closest('#exit-sort-mode-btn')) {
+        // 메인 컨텐츠 영역 클릭 (이벤트 위임) - 정리 모드, 상세 뷰
+        this.elements.promptDetailContainer.addEventListener('click', (e) => {
+             const targetId = e.target.closest('button')?.id;
+             switch(targetId) {
+                 case 'generate-ai-draft-btn':
+                     this.store.generateAIDraft();
+                     break;
+                 case 'delete-prompt-btn':
+                     this.store.deleteSelectedPrompt();
+                     break;
+                 case 'confirm-ai-draft-btn':
+                     this.store.confirmAIDraft();
+                     break;
+                case 'exit-sort-mode-btn':
                     this.store.exitSortMode();
-                }
-            }
-        });
+                    break;
+             }
 
-        // 프롬프트 상세 뷰 자동 저장을 위한 이벤트 리스너 (이벤트 위임)
-        document.body.addEventListener('input', (e) => {
-            if (e.target.id === 'prompt-content-editor') {
-                clearTimeout(this.debounceTimer);
-                this.debounceTimer = setTimeout(() => {
-                    this.store.updateSelectedPromptContent(e.target.value);
-                }, 300); // 300ms 디바운스
-            }
+             const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
+             if (suggestionBtn) {
+                 this.handleSortModeAction(suggestionBtn.dataset.catId);
+                 return;
+             }
         });
     }
 
@@ -113,35 +93,21 @@ class UI {
     render(state) {
         if (!state) state = this.store.getState();
         
-        const mainContent = document.querySelector('.main-content');
-        
         this.renderSidebar(state);
         
-        if (state.viewMode === 'sort') {
-            mainContent.innerHTML = ''; // 기존 list, detail 컨테이너 제거
-            this.renderSortModeView(state, mainContent);
-        } else {
-             // main-content의 자식으로 prompt-list-container가 있는지 확인
-            if (!mainContent.querySelector('.prompt-list-container')) {
-                 mainContent.innerHTML = `
-                    <section id="prompt-list-container" class="prompt-list-container">
-                        <header class="list-header">
-                            <h2 id="current-category-title"></h2>
-                            <span id="prompt-count"></span>
-                        </header>
-                        <div id="prompt-list" class="prompt-list"></div>
-                    </section>
-                    <section id="prompt-detail-container" class="prompt-detail-container"></section>
-                `;
-            }
-           
-            // 다시 DOM 요소를 캐싱
-            this.elements.promptList = document.getElementById('prompt-list');
-            this.elements.promptDetailContainer = document.getElementById('prompt-detail-container');
-            this.elements.currentCategoryTitle = document.getElementById('current-category-title');
-            this.elements.promptCount = document.getElementById('prompt-count');
-
-            this.renderListView(state);
+        this.elements.promptListContainer.classList.remove('inactive');
+        this.elements.promptDetailContainer.innerHTML = '';
+        
+        switch(state.viewMode) {
+            case 'sort':
+                this.renderSortModeView(state);
+                break;
+            case 'capture':
+                this.renderCaptureView(state);
+                break;
+            default: // 'list'
+                this.renderListView(state);
+                break;
         }
     }
 
@@ -189,17 +155,17 @@ class UI {
         this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
         this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
         
-        if (filteredPrompts.length === 0) {
-            this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">${APP_CONFIG.UI_TEXTS.EMPTY_PROMPTS_MESSAGE}</p>`;
+        if (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted') {
+             this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`;
         } else {
-            this.elements.promptList.innerHTML = filteredPrompts.map(p => `
+             this.elements.promptList.innerHTML = filteredPrompts.map(p => `
                 <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
                     <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
                     <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
                 </div>
             `).join('');
         }
-
+        
         this.renderDetailView(state);
     }
 
@@ -212,53 +178,33 @@ class UI {
             this.elements.promptDetailContainer.innerHTML = `
                 <div id="detail-view-placeholder" class="placeholder">
                     <p>프롬프트를 선택하거나 새로 만드세요.</p>
-                    <small>단축키: \`Ctrl+K\`로 명령 팔레트 열기</small>
+                    <small>단축키: \`Ctrl+K\`로 명령어 팔레트 열기</small>
                 </div>`;
             return;
         }
 
-        const isEditMode = !selectedPrompt.aiDraftContent && !isLoading;
-
-        let detailContentHtml = '';
-        if (isEditMode) {
-            detailContentHtml = `
-                <textarea id="prompt-content-editor" class="prompt-content-editor">${sanitizeHTML(selectedPrompt.content)}</textarea>
-            `;
-        } else {
-            const readOnlyContent = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
-                ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
-                : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
-
-            detailContentHtml = `
-                ${readOnlyContent}
-                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !isLoading ? 'hidden' : ''}">
-                    ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
-                </div>
-            `;
-        }
+        const contentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING
+            ? `<div class="prompt-content-view">${marked.parse(selectedPrompt.content)}</div>`
+            : `<div class="prompt-content-view"><pre>${sanitizeHTML(selectedPrompt.content)}</pre></div>`;
 
         this.elements.promptDetailContainer.innerHTML = `
             <div id="detail-view">
                 <div class="detail-header">
                     <small>최종 수정: ${new Date(selectedPrompt.updatedAt).toLocaleString()}</small>
                     <div class="detail-header-actions">
-                         <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>
+                        <button id="generate-ai-draft-btn" ${isLoading ? 'disabled' : ''}>
                             ${isLoading ? '생성 중...' : '✨ AI 초안 생성'}
                         </button>
                         <button id="delete-prompt-btn">삭제</button>
                     </div>
                 </div>
-                ${detailContentHtml}
+                ${contentHtml}
+                <div id="ai-draft-container" class="ai-draft-container ${!selectedPrompt.aiDraftContent && !isLoading ? 'hidden' : ''}">
+                    ${isLoading ? this.renderAIDraftLoading() : this.renderAIDraft(selectedPrompt)}
+                </div>
             </div>`;
         
-        if (isEditMode) {
-            const editor = document.getElementById('prompt-content-editor');
-            if (editor) {
-                editor.focus();
-                // [FIX] textarea의 커서를 텍스트 끝으로 이동시키는 올바른 방법
-                editor.selectionStart = editor.selectionEnd = editor.value.length;
-            }
-        } else if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
+        if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
         }
     }
@@ -270,7 +216,7 @@ class UI {
                 <span class="sparkle">✨</span> 전략가 AI 추천 초안
             </div>
             <div class="prompt-content-view">${marked.parse(prompt.aiDraftContent)}</div>
-            <div class="detail-header-actions" style="margin-top: 1rem; justify-content: flex-end;">
+            <div class="detail-header-actions" style="margin-top: 1rem;">
                 <button id="confirm-ai-draft-btn">이 버전으로 확정하기</button>
             </div>
         `;
@@ -283,23 +229,55 @@ class UI {
             </div>
         `;
     }
+    
+    // [신규] 캡처 뷰 렌더링
+    renderCaptureView() {
+        this.elements.promptListContainer.classList.add('inactive');
+        this.elements.promptList.innerHTML = '';
+        this.elements.currentCategoryTitle.textContent = "새 아이디어";
+        this.elements.promptCount.textContent = "캡처 중...";
 
-    renderSortModeView({ prompts, categories }, container) {
+        this.elements.promptDetailContainer.innerHTML = `
+            <div id="capture-view">
+                <input type="text" id="capture-input" placeholder="번뜩이는 아이디어를 한 줄로... (Enter로 즉시 저장)">
+            </div>
+        `;
+
+        const input = document.getElementById('capture-input');
+        input.focus();
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.store.saveCapturedPrompt(e.target.value);
+            }
+            if (e.key === 'Escape') {
+                this.store.exitCaptureMode();
+            }
+        });
+    }
+
+    renderSortModeView({ prompts, categories }) {
         const unsortedPrompts = prompts.filter(p => !p.categoryId);
         
-        let contentHtml = '';
+        this.elements.promptList.innerHTML = ''; // 목록 비우기
+        this.elements.currentCategoryTitle.textContent = "정리 모드";
+        this.elements.promptCount.textContent = `${unsortedPrompts.length}개 남음`;
+
         if (unsortedPrompts.length === 0) {
-            contentHtml = `
-                <div class="placeholder">
+            this.elements.promptDetailContainer.innerHTML = `
+                <div id="sort-mode-view" class="placeholder">
                     <h2>${APP_CONFIG.UI_TEXTS.EMPTY_SORT_MODE_MESSAGE}</h2>
-                    <button id="exit-sort-mode-btn" class="sidebar-btn" style="margin-top: 1rem; padding: 0.5rem 1rem;">돌아가기</button>
+                    <button id="exit-sort-mode-btn" class="sidebar-btn" style="padding: 0.5rem 1rem; margin-top: 1rem;">돌아가기</button>
                 </div>`;
-        } else {
-            const currentPrompt = unsortedPrompts[0];
-            const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
-            contentHtml = `
-                <h2>${APP_CONFIG.UI_TEXTS.SORT_MODE_TITLE} (${unsortedPrompts.length})</h2>
-                <p style="margin-bottom: 2rem;">${APP_CONFIG.UI_TEXTS.SORT_MODE_PROMPT}</p>
+            return;
+        }
+
+        const currentPrompt = unsortedPrompts[0];
+        const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
+
+        this.elements.promptDetailContainer.innerHTML = `
+            <div id="sort-mode-view">
+                <h2>${APP_CONFIG.UI_TEXTS.SORT_MODE_TITLE}</h2>
+                <p>${APP_CONFIG.UI_TEXTS.SORT_MODE_PROMPT}</p>
                 <div class="sort-card">
                     <div class="sort-card-content">${sanitizeHTML(currentPrompt.content)}</div>
                     <div class="category-suggestions">
@@ -307,11 +285,8 @@ class UI {
                         <button class="category-suggestion-btn" data-cat-id="new">직접 입력...</button>
                     </div>
                 </div>
-                <button id="exit-sort-mode-btn" class="sidebar-btn" style="margin-top: 1rem; padding: 0.5rem 1rem;">정리 끝내기</button>
-            `;
-        }
-        
-        container.innerHTML = `<div id="sort-mode-view">${contentHtml}</div>`;
+                <button id="exit-sort-mode-btn" class="sidebar-btn" style="padding: 0.5rem 1rem;">정리 끝내기</button>
+            </div>`;
     }
 
     handleSortModeAction(categoryId) {

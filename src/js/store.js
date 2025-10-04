@@ -11,7 +11,7 @@ class Store {
             categories: [],
             currentCategoryId: 'all',
             selectedPromptId: null,
-            viewMode: 'list', // 'list' | 'sort'
+            viewMode: 'list', // 'list' | 'sort' | 'capture'
             isLoading: false,
         };
         this.listeners = []; // 상태 변경을 구독할 함수들의 배열
@@ -46,11 +46,20 @@ class Store {
         this.setState({ selectedPromptId: promptId, viewMode: 'list' });
     }
 
-    // [수정] '무중단 캡처' 기능 구현
-    // 새 프롬프트 생성 시, 즉시 '미분류' 카테고리로 이동하여 사용자의 흐름을 방해하지 않음
-    async createNewPrompt() {
+    // [수정] '새 프롬프트 생성' 시, '캡처 모드'로 진입
+    createNewPrompt() {
+        this.setState({ viewMode: 'capture', selectedPromptId: null });
+    }
+    
+    // [신규] '캡처 모드'에서 입력된 프롬프트를 저장
+    async saveCapturedPrompt(content) {
+        if (!content || content.trim() === '') {
+            this.exitCaptureMode();
+            return;
+        }
+
         const newPrompt = {
-            content: '# 새로운 프롬프트\n\n여기에 내용을 입력하세요.',
+            content: content.trim(),
             aiDraftContent: '',
             categoryId: null, // '미분류' 상태
             createdAt: new Date().toISOString(),
@@ -63,8 +72,13 @@ class Store {
             prompts: allPrompts,
             selectedPromptId: newId, // 새로 만든 프롬프트를 선택
             currentCategoryId: 'unsorted', // '미분류' 탭으로 즉시 이동
-            viewMode: 'list', // 편집을 위해 리스트 뷰로 강제
+            viewMode: 'list', // 리스트 뷰로 전환
         });
+    }
+
+    // [신규] '캡처 모드' 취소
+    exitCaptureMode() {
+        this.setState({ viewMode: 'list' });
     }
 
     // 프롬프트 내용 업데이트
@@ -81,7 +95,6 @@ class Store {
             };
             await db.updatePrompt(updatedPrompt);
             const allPrompts = await db.getAllPrompts();
-            // 상태 업데이트 시, 현재 선택된 프롬프트가 사라지지 않도록 selectedPromptId를 유지
             this.setState({ prompts: allPrompts });
         }
     }
@@ -108,16 +121,7 @@ class Store {
         if (!selectedPromptId) return;
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt && prompt.aiDraftContent) {
-            const updatedContent = prompt.aiDraftContent;
-            const updatedPrompt = {
-               ...prompt,
-                content: updatedContent,
-                aiDraftContent: '', // 확정 후 AI 초안은 비움
-                updatedAt: new Date().toISOString(),
-            };
-            await db.updatePrompt(updatedPrompt);
-            const allPrompts = await db.getAllPrompts();
-            this.setState({ prompts: allPrompts });
+            this.updateSelectedPromptContent(prompt.aiDraftContent);
         }
     }
 
@@ -135,7 +139,7 @@ class Store {
     enterSortMode() {
         const unsortedPrompts = this.state.prompts.filter(p =>!p.categoryId);
         if (unsortedPrompts.length > 0) {
-            this.setState({ viewMode: 'sort' });
+            this.setState({ viewMode: 'sort', selectedPromptId: null });
         } else {
             alert("정리할 프롬프트가 없습니다.");
         }
