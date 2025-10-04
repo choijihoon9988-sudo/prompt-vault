@@ -67,3 +67,6 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Vault-OS: API 키 파일 제외
+src/api-keys.js

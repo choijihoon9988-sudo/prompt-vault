@@ -91,12 +91,19 @@ class Store {
 
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
-            this.setState({ isLoading: true });
-            const draft = await services.getAIStrategistDraft(prompt.content);
-            const updatedPrompt = {...prompt, aiDraftContent: draft };
-            await db.updatePrompt(updatedPrompt);
-            const allPrompts = await db.getAllPrompts();
-            this.setState({ prompts: allPrompts, isLoading: false });
+            try {
+                this.setState({ isLoading: true });
+                const draft = await services.getAIStrategistDraft(prompt.content);
+                const updatedPrompt = {...prompt, aiDraftContent: draft };
+                await db.updatePrompt(updatedPrompt);
+                const allPrompts = await db.getAllPrompts();
+                this.setState({ prompts: allPrompts });
+            } catch (error) {
+                console.error("AI Draft generation failed:", error);
+                alert("AI 초안 생성에 실패했습니다. API 키를 확인하거나 잠시 후 다시 시도해주세요.");
+            } finally {
+                this.setState({ isLoading: false });
+            }
         }
     }
 
