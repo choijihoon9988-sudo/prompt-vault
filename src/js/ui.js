@@ -161,9 +161,10 @@ class UI {
     renderCategoryList({ categories, prompts, currentCategoryId }) {
         const unsortedCount = prompts.filter(p => !p.categoryId).length;
         
-        const allPromptsHtml = `<button data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>`;
-        const unsortedHtml = `<button data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}"><span>미분류</span><span class="badge">${unsortedCount}</span></button>`;
-        const categoriesHtml = categories.map(cat => `<button data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</button>`).join('');
+        // [수정] 모든 버튼에 'category-item' 클래스를 추가하여 CSS 스타일이 적용되도록 합니다.
+        const allPromptsHtml = `<button data-id="all" class="category-item ${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</button>`;
+        const unsortedHtml = `<button data-id="unsorted" class="category-item ${currentCategoryId === 'unsorted' ? 'active' : ''}"><span>미분류</span><span class="badge">${unsortedCount}</span></button>`;
+        const categoriesHtml = categories.map(cat => `<button data-id="${cat.id}" class="category-item ${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</button>`).join('');
         
         this.elements.categoryList.innerHTML = allPromptsHtml + unsortedHtml + categoriesHtml;
 
