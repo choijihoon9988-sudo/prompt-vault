@@ -88,9 +88,11 @@ class Store {
 
         const promptToUpdate = prompts.find(p => p.id === selectedPromptId);
         if (promptToUpdate) {
+            // [수정] 명세서에 따라 원본 수정 시, 기존 AI 초안은 무효화되므로 초기화
             const updatedPrompt = {
                ...promptToUpdate,
                 content: newContent,
+                aiDraftContent: '', // 기존 AI 초안을 비워 유효하지 않음을 표시
                 updatedAt: new Date().toISOString(),
             };
             await db.updatePrompt(updatedPrompt);
