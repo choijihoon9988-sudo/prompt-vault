@@ -262,15 +262,15 @@ body {
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
 }
-/* [신규] 좌우 분할 비교 UI 스타일 */
+/* 좌우 분할 비교 UI 스타일 */
 .detail-split-container {
     display: flex;
     gap: 1.5rem;
     flex-grow: 1;
     overflow: hidden;
 }
+
 .prompt-view-panel {
-    width: 50%;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -278,7 +278,19 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
+    /* [추가] 뷰 전환 애니메이션 */
+    transition: width var(--transition-medium);
 }
+/* [수정] 분할 뷰 내부의 패널에만 50% 너비 적용 */
+.detail-split-container .prompt-view-panel {
+    width: 50%;
+}
+/* [추가] 단일 뷰일 때 패널이 전체 너비를 차지하도록 */
+.prompt-view-panel.full-width {
+    width: 100%;
+}
+
+
 .prompt-view-panel h3 {
     font-size: 1rem;
     font-weight: 600;
@@ -306,22 +318,26 @@ body {
 
 .prompt-content-editor {
     width: 100%;
-    min-height: 200px;
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
+    height: 100%; 
+    background-color: transparent; 
+    border: none; 
+    padding: 0; 
     font-family: 'D2Coding', monospace;
     font-size: 1rem;
+    line-height: 1.7; 
     color: var(--text-primary);
-    resize: vertical;
+    resize: none; 
+    outline: none; 
 }
 
 .prompt-content-view {
     line-height: 1.7;
-    /* [수정] 인라인 편집 비활성화로 커서 스타일 제거 */
-    /* cursor: pointer; */
 }
+
+.original-panel .prompt-content-view {
+    cursor: pointer;
+}
+
 
 .prompt-content-view h1,.prompt-content-view h2,.prompt-content-view h3 {
     margin-top: 1.5em;
@@ -336,7 +352,7 @@ body {
     margin-bottom: 1em;
 }
 .prompt-content-view pre {
-    background-color: var(--bg-primary); /* 수정: 배경색 변경 */
+    background-color: var(--bg-primary); 
     padding: 1rem;
     border-radius: 8px;
     overflow-x: auto;
@@ -425,7 +441,6 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* justify-content: center; */
     height: 100%;
     animation: fadeIn 0.5s var(--ease-out-quart);
 }

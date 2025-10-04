@@ -20,8 +20,7 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        // [삭제] 분할 뷰 도입으로 인라인 편집 기능 일시 비활성화
-        // this.editingPromptId = null; 
+        this.editingPromptId = null; 
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -61,6 +60,7 @@ class UI {
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
+                if (this.editingPromptId) this.editingPromptId = null;
                 this.store.selectPrompt(parseInt(promptCard.dataset.id));
             }
         });
@@ -88,7 +88,22 @@ class UI {
                  this.handleSortModeAction(suggestionBtn.dataset.catId);
                  return;
              }
+             
+             const contentView = e.target.closest('.original-panel .prompt-content-view');
+             if (contentView && this.editingPromptId === null) {
+                 const { selectedPromptId } = this.store.getState();
+                 this.editingPromptId = selectedPromptId;
+                 this.render(); 
+             }
         });
+        
+        this.elements.promptDetailContainer.addEventListener('blur', (e) => {
+            const editor = e.target.closest('textarea.prompt-content-editor');
+            if (editor && this.editingPromptId !== null) {
+                this.store.updateSelectedPromptContent(editor.value);
+                this.editingPromptId = null; 
+            }
+        }, true); 
     }
 
     // 상태가 변경될 때마다 호출되는 마스터 렌더링 함수
@@ -98,8 +113,11 @@ class UI {
         this.renderSidebar(state);
         
         this.elements.promptListContainer.classList.remove('inactive');
-        this.elements.promptDetailContainer.innerHTML = '';
         
+        if (this.editingPromptId === null) {
+            this.elements.promptDetailContainer.innerHTML = '';
+        }
+
         switch(state.viewMode) {
             case 'sort':
                 this.renderSortModeView(state);
@@ -140,38 +158,40 @@ class UI {
     renderListView(state) {
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
 
-        let filteredPrompts = [];
-        let categoryTitle = "";
-        if (currentCategoryId === 'all') {
-            filteredPrompts = prompts;
-            categoryTitle = "모든 프롬프트";
-        } else if (currentCategoryId === 'unsorted') {
-            filteredPrompts = prompts.filter(p => !p.categoryId);
-            categoryTitle = "미분류";
-        } else {
-            filteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
-            const cat = categories.find(c => c.id === currentCategoryId);
-            categoryTitle = cat ? cat.name : "알 수 없는 카테고리";
-        }
+        if (this.editingPromptId === null) {
+            let filteredPrompts = [];
+            let categoryTitle = "";
+            if (currentCategoryId === 'all') {
+                filteredPrompts = prompts;
+                categoryTitle = "모든 프롬프트";
+            } else if (currentCategoryId === 'unsorted') {
+                filteredPrompts = prompts.filter(p => !p.categoryId);
+                categoryTitle = "미분류";
+            } else {
+                filteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
+                const cat = categories.find(c => c.id === currentCategoryId);
+                categoryTitle = cat ? cat.name : "알 수 없는 카테고리";
+            }
 
-        this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
-        this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
-        
-        if (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted') {
-             this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`;
-        } else {
-             this.elements.promptList.innerHTML = filteredPrompts.map(p => `
-                <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
-                    <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
-                    <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
-                </div>
-            `).join('');
+            this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
+            this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
+            
+            if (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted') {
+                 this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`;
+            } else {
+                 this.elements.promptList.innerHTML = filteredPrompts.map(p => `
+                    <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
+                        <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
+                        <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
+                    </div>
+                `).join('');
+            }
         }
         
         this.renderDetailView(state);
     }
 
-    // [대폭 수정] 상세 뷰를 좌우 분할 레이아웃으로 렌더링
+    // [대폭 수정] 상세 뷰를 단일/분할 모드로 동적 렌더링
     renderDetailView(state) {
         const { prompts, selectedPromptId, isLoading } = state;
         const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
@@ -189,15 +209,49 @@ class UI {
             ? marked.parse(selectedPrompt.content)
             : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
         
-        let aiDraftContentHtml = '';
-        if (isLoading) {
-            aiDraftContentHtml = this.renderAIDraftLoading();
-        } else if (selectedPrompt.aiDraftContent) {
-            aiDraftContentHtml = this.renderAIDraft(selectedPrompt);
-        } else {
-            aiDraftContentHtml = this.renderAIDraftPlaceholder();
-        }
+        const originalPanelContent = (selectedPrompt.id === this.editingPromptId)
+            ? `<textarea class="prompt-content-editor">${selectedPrompt.content}</textarea>`
+            : `<div class="prompt-content-view">${originalContentHtml}</div>`;
 
+        let mainViewHtml;
+
+        // AI 초안이 있거나, 로딩 중일 때만 분할 뷰를 보여줌
+        if (selectedPrompt.aiDraftContent || isLoading) {
+            let aiDraftContentHtml;
+            if (isLoading) {
+                aiDraftContentHtml = this.renderAIDraftLoading();
+            } else { 
+                aiDraftContentHtml = this.renderAIDraft(selectedPrompt);
+            }
+
+            mainViewHtml = `
+                <div class="detail-split-container">
+                    <div class="prompt-view-panel original-panel">
+                        <h3>원본</h3>
+                        <div class="prompt-content-wrapper">
+                           ${originalPanelContent}
+                        </div>
+                    </div>
+                    <div class="prompt-view-panel ai-draft-panel">
+                        <h3>✨ 전략가 AI 추천 초안</h3>
+                        <div class="prompt-content-wrapper">
+                            ${aiDraftContentHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // AI 초안이 없으면 전체 너비의 단일 뷰를 보여줌
+            mainViewHtml = `
+                <div class="prompt-view-panel original-panel full-width">
+                    <h3>원본</h3>
+                    <div class="prompt-content-wrapper">
+                       ${originalPanelContent}
+                    </div>
+                </div>
+            `;
+        }
+        
         this.elements.promptDetailContainer.innerHTML = `
             <div id="detail-view">
                 <div class="detail-header">
@@ -209,22 +263,16 @@ class UI {
                         <button id="delete-prompt-btn">삭제</button>
                     </div>
                 </div>
-
-                <div class="detail-split-container">
-                    <div class="prompt-view-panel original-panel">
-                        <h3>원본</h3>
-                        <div class="prompt-content-wrapper">
-                            <div class="prompt-content-view">${originalContentHtml}</div>
-                        </div>
-                    </div>
-                    <div class="prompt-view-panel ai-draft-panel">
-                        <h3>✨ 전략가 AI 추천 초안</h3>
-                        <div class="prompt-content-wrapper">
-                            ${aiDraftContentHtml}
-                        </div>
-                    </div>
-                </div>
+                ${mainViewHtml}
             </div>`;
+        
+        if (selectedPrompt.id === this.editingPromptId) {
+            const editor = this.elements.promptDetailContainer.querySelector('.prompt-content-editor');
+            if (editor) {
+                editor.focus();
+                editor.setSelectionRange(editor.value.length, editor.value.length);
+            }
+        }
         
         if (APP_CONFIG.FEATURES.ENABLE_SYNTAX_HIGHLIGHTING) {
             this.elements.promptDetailContainer.querySelectorAll('pre code').forEach(hljs.highlightElement);
@@ -241,7 +289,7 @@ class UI {
         return `
             <div class="prompt-content-view">${draftHtml}</div>
             <div class="ai-draft-container">
-                <button id="confirm-ai-draft-btn">이 버전으로 확정하기</button>
+                <button id="confirm-ai-draft-btn" class="sidebar-btn">이 버전으로 확정하기</button>
             </div>
         `;
     }
@@ -254,17 +302,8 @@ class UI {
             </div>
         `;
     }
-
-    // AI 초안이 없을 때의 플레이스홀더 렌더링
-    renderAIDraftPlaceholder() {
-        return `
-            <div class="placeholder">
-                <p>버튼을 눌러 AI 추천 초안을 생성하고<br>당신의 아이디어를 지적 자산으로 바꿔보세요.</p>
-            </div>
-        `;
-    }
     
-    // [신규] 캡처 뷰 렌더링
+    // 캡처 뷰 렌더링
     renderCaptureView() {
         this.elements.promptListContainer.classList.add('inactive');
         this.elements.promptList.innerHTML = '';
