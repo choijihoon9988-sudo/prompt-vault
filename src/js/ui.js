@@ -20,8 +20,8 @@ class UI {
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
         this.store = null;
-        // [제거] contenteditable 방식을 사용하므로 ID 추적 상태가 더 이상 필요 없습니다.
-        this.editingPromptId = null; 
+        this.editingPromptId = null;
+        this.clickTimer = null; // 더블클릭과 싱글클릭을 구분하기 위한 타이머
     }
 
     // 스토어를 주입받고 상태 변경을 구독
@@ -42,7 +42,7 @@ class UI {
         document.body.setAttribute('data-theme', config.THEME.DEFAULT_THEME);
     }
     
-    // [최종 업그레이드] 이벤트 리스너를 contenteditable + Turndown 방식으로 변경
+    // [최종 업그레이드] 이벤트 리스너를 contenteditable + Turndown 방식으로 변경 + 원클릭/더블클릭 기능 추가
     setupEventListeners() {
         // 정적 버튼 이벤트
         this.elements.newPromptBtn.addEventListener('click', () => this.store.createNewPrompt());
@@ -53,9 +53,34 @@ class UI {
             if (li) this.store.selectCategory(li.dataset.id === 'all' || li.dataset.id === 'unsorted' ? li.dataset.id : parseInt(li.dataset.id));
         });
 
+        // [수정] 클릭/더블클릭 이벤트 리스너 구현
         this.elements.promptList.addEventListener('click', (e) => {
             const promptCard = e.target.closest('.prompt-card[data-id]');
-            if (promptCard) this.store.selectPrompt(parseInt(promptCard.dataset.id));
+            if (!promptCard) return;
+
+            if (this.clickTimer) {
+                clearTimeout(this.clickTimer);
+                this.clickTimer = null;
+                return;
+            }
+
+            this.clickTimer = setTimeout(() => {
+                const promptId = parseInt(promptCard.dataset.id);
+                this.handleSingleClick(promptId);
+                this.clickTimer = null;
+            }, 200);
+        });
+        
+        this.elements.promptList.addEventListener('dblclick', (e) => {
+            const promptCard = e.target.closest('.prompt-card[data-id]');
+            if (promptCard) {
+                if (this.clickTimer) {
+                    clearTimeout(this.clickTimer);
+                    this.clickTimer = null;
+                }
+                const promptId = parseInt(promptCard.dataset.id);
+                this.store.selectPrompt(promptId);
+            }
         });
         
         this.elements.promptDetailContainer.addEventListener('click', (e) => {
@@ -70,7 +95,6 @@ class UI {
              const suggestionBtn = e.target.closest('.category-suggestion-btn[data-cat-id]');
              if (suggestionBtn) this.handleSortModeAction(suggestionBtn.dataset.catId);
              
-             // 클릭 시 뷰를 편집 가능한 상태로 전환
              const contentView = e.target.closest('.original-panel .prompt-content-view');
              if (contentView && contentView.getAttribute('contenteditable') !== 'true') {
                  contentView.setAttribute('contenteditable', 'true');
@@ -78,20 +102,50 @@ class UI {
              }
         });
         
-        // 포커스가 해제될 때(blur) 내용을 저장
         this.elements.promptDetailContainer.addEventListener('blur', (e) => {
             const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
             if (contentView) {
                 contentView.setAttribute('contenteditable', 'false');
                 
-                // Turndown 라이브러리를 사용하여 수정된 HTML을 마크다운으로 변환
                 const turndownService = new TurndownService();
                 const newMarkdown = turndownService.turndown(contentView.innerHTML);
                 
-                // 변환된 마크다운을 저장하여 서식을 완벽하게 보존
                 this.store.updateSelectedPromptContent(newMarkdown);
             }
-        }, true); // 캡처 단계에서 이벤트를 처리하여 안정성을 높임
+        }, true);
+    }
+    
+    // [신규] 싱글클릭(복사) 처리 함수
+    handleSingleClick(promptId) {
+        const state = this.store.getState();
+        const prompt = state.prompts.find(p => p.id === promptId);
+        if (prompt) {
+            navigator.clipboard.writeText(prompt.content)
+                .then(() => {
+                    this.showToast("✅ 복사 완료");
+                })
+                .catch(err => {
+                    console.error('Copy failed', err);
+                    this.showToast("❌ 복사 실패", "error");
+                });
+        }
+    }
+
+    // [신규] 토스트 메시지 표시 함수
+    showToast(message, type = 'success') {
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 1500);
     }
 
 
@@ -115,7 +169,7 @@ class UI {
         
         let categoryHtml = `<ul>
             <li data-id="all" class="${currentCategoryId === 'all' ? 'active' : ''}">모든 프롬프트</li>
-            <li data--id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
+            <li data-id="unsorted" class="${currentCategoryId === 'unsorted' ? 'active' : ''}">미분류</li>
             ${categories.map(cat => `<li data-id="${cat.id}" class="${currentCategoryId === cat.id ? 'active' : ''}">${sanitizeHTML(cat.name)}</li>`).join('')}
         </ul>`;
         

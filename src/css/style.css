@@ -537,6 +537,23 @@ body {
     opacity: 0.7;
 }
 
+/* [신규] 토스트 메시지 스타일 */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    z-index: 2000;
+    animation: slideInUp 0.3s var(--ease-out-quart);
+}
+.toast.error {
+    background-color: #EF4444; /* red-500 */
+}
+
 /* 유틸리티 및 애니메이션 */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -549,6 +566,16 @@ body {
 @keyframes sparkle {
     0%, 100% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.2); opacity: 0.7; }
+}
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 .hidden {
     display: none!important;
