@@ -274,4 +274,3 @@ class UI {
 }
 
 export const ui = new UI();
-

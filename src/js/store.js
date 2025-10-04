@@ -46,21 +46,23 @@ class Store {
         this.setState({ selectedPromptId: promptId, viewMode: 'list' });
     }
 
-    // 새 프롬프트 생성
+    // [수정] '무중단 캡처' 기능 구현
+    // 새 프롬프트 생성 시, 즉시 '미분류' 카테고리로 이동하여 사용자의 흐름을 방해하지 않음
     async createNewPrompt() {
         const newPrompt = {
             content: '# 새로운 프롬프트\n\n여기에 내용을 입력하세요.',
             aiDraftContent: '',
-            categoryId: null, // 미분류
+            categoryId: null, // '미분류' 상태
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
         const newId = await db.addPrompt(newPrompt);
         const allPrompts = await db.getAllPrompts();
+        // 상태를 업데이트하여 UI가 즉시 반응하도록 함
         this.setState({
             prompts: allPrompts,
-            selectedPromptId: newId,
-            currentCategoryId: 'unsorted',
+            selectedPromptId: newId, // 새로 만든 프롬프트를 선택
+            currentCategoryId: 'unsorted', // '미분류' 탭으로 즉시 이동
         });
     }
 
@@ -89,13 +91,12 @@ class Store {
 
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
-            this.setState({ isLoading: true }); // --- 수정: 로딩 상태를 true로 설정
-            // ui.showAIDraftLoading(); // --- 제거: UI 직접 제어 코드 삭제
+            this.setState({ isLoading: true });
             const draft = await services.getAIStrategistDraft(prompt.content);
             const updatedPrompt = {...prompt, aiDraftContent: draft };
             await db.updatePrompt(updatedPrompt);
             const allPrompts = await db.getAllPrompts();
-            this.setState({ prompts: allPrompts, isLoading: false }); // --- 수정: 로딩 상태를 false로 설정
+            this.setState({ prompts: allPrompts, isLoading: false });
         }
     }
 
