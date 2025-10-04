@@ -66,6 +66,8 @@ class Store {
             categoryId: null, // '미분류' 상태
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            title: '', // [신규] title 필드 추가
+            summary: '', // [신규] summary 필드 추가
         };
         const newId = await db.addPrompt(newPrompt);
         const allPrompts = await db.getAllPrompts();
@@ -111,8 +113,15 @@ class Store {
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
             this.setState({ isLoading: true });
-            const draft = await services.getAIStrategistDraft(prompt.content);
-            const updatedPrompt = {...prompt, aiDraftContent: draft };
+            // [수정] services로부터 {title, summary, draft} 객체를 받음
+            const result = await services.getAIStrategistDraft(prompt.content);
+            // [수정] 받은 객체로 prompt의 title, summary, aiDraftContent를 모두 업데이트
+            const updatedPrompt = {
+                ...prompt, 
+                title: result.title,
+                summary: result.summary,
+                aiDraftContent: result.draft 
+            };
             await db.updatePrompt(updatedPrompt);
             const allPrompts = await db.getAllPrompts();
             this.setState({ prompts: allPrompts, isLoading: false });
@@ -126,6 +135,7 @@ class Store {
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt && prompt.aiDraftContent) {
             // [수정] content를 aiDraftContent로 업데이트하고, aiDraftContent는 비움
+            // 이 시점에 title과 summary는 generateAIDraft에서 이미 업데이트되었으므로 그대로 유지됨
             const updatedPrompt = {
                ...prompt,
                 content: prompt.aiDraftContent,

@@ -197,7 +197,6 @@ class UI {
         
         this.renderCategoryList(state); 
         
-        // [수정] 누락되었던 코드 복구 및 신규 로직 추가
         this.elements.promptListContainer.classList.remove('inactive');
         const isSortMode = state.viewMode === 'sort';
         this.elements.promptListContainer.classList.toggle('hidden', isSortMode);
@@ -252,8 +251,8 @@ class UI {
             ? `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`
             : filteredPrompts.map(p => `
                 <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
-                    <div class="prompt-card-title">${sanitizeHTML(getFirstLine(p.content))}</div>
-                    <div class="prompt-card-preview">${sanitizeHTML(p.content)}</div>
+                    <div class="prompt-card-title">${sanitizeHTML(p.title || getFirstLine(p.content))}</div>
+                    <div class="prompt-card-preview">${sanitizeHTML(p.summary || p.content)}</div>
                 </div>
             `).join('');
         

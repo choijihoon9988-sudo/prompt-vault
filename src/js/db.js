@@ -1,6 +1,6 @@
 // IndexedDB를 추상화하여 사용하기 쉽게 만드는 데이터베이스 모듈
 const DB_NAME = 'PromptVaultDB';
-const DB_VERSION = 2; // <<-- 버전 1에서 2로 변경
+const DB_VERSION = 3; // <<-- [수정] 신규 필드(title, summary) 추가를 위한 버전 업그레이드
 const PROMPTS_STORE = 'prompts';
 const CATEGORIES_STORE = 'categories';
 
@@ -109,4 +109,3 @@ export const db = {
         request.onsuccess = () => resolve(request.result);
     }),
 };
-
