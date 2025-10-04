@@ -22,11 +22,11 @@ export const APP_CONFIG = {
 
   // --- AI 서비스 설정 ---
   AI_SERVICE: {
-    // [중요] 여기에 당신의 Google AI Studio Gemini API 키를 입력하세요.
+    // [완료] CEO님의 API 키를 여기에 직접 반영했습니다.
     API_KEY: "AIzaSyDSIRzDsbonDZwuDB6RRmYYy-vR2Cqupmg", 
     
     // API 호출에 사용할 모델 이름
-    MODEL_NAME: "gemini-2.5-pro",
+    MODEL_NAME: "gemini-1.5-flash",
 
     // AI가 생성하는 프롬프트 초안의 기본 구조입니다.
     // {userInput} 부분은 사용자의 실제 입력으로 대체됩니다.

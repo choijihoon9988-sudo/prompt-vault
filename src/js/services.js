@@ -10,7 +10,8 @@ class Services {
     async getAIStrategistDraft(userInput) {
         const { API_KEY, MODEL_NAME, STRATEGIST_AI_PROMPT_TEMPLATE } = APP_CONFIG.AI_SERVICE;
 
-        if (!API_KEY || API_KEY === "AIzaSyDSIRzDsbonDZwuDB6RRmYYy-vR2Cqupmg") {
+        // [수정 완료] 오류의 원인이었던 조건문을 올바르게 되돌렸습니다.
+        if (!API_KEY || API_KEY === "YOUR_API_KEY") {
             console.error("API key not found. Please set your API key in config.js");
             return "## ⚠️ API 키 오류\n\n`src/config.js` 파일에 당신의 Google Gemini API 키를 입력해주세요.";
         }
@@ -40,7 +41,6 @@ class Services {
 
             const data = await response.json();
             
-            // API 응답에서 텍스트 추출
             const draft = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
             if (!draft) {
