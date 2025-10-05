@@ -226,6 +226,16 @@ class UI {
         this.elements.unsortedCountBadge.textContent = unsortedCount;
         this.elements.sortModeBtn.classList.toggle('highlight', unsortedCount > 0 && APP_CONFIG.FEATURES.ENABLE_SORT_MODE_NOTIFICATIONS);
     }
+    
+    // [신규] 마크다운 렌더링을 위한 헬퍼 함수
+    _renderMarkdownContent(content) {
+        if (!content) return '';
+        if (APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING) {
+            return marked.parse(content);
+        }
+        // 마크다운 비활성화 시, pre 태그로 래핑하여 텍스트 형식 유지
+        return `<pre>${sanitizeHTML(content)}</pre>`;
+    }
 
     renderListView(state) {
         const { prompts, categories, currentCategoryId, selectedPromptId } = state;
@@ -267,8 +277,8 @@ class UI {
             return;
         }
         
-        const originalContentHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING ? marked.parse(selectedPrompt.content) : `<pre>${sanitizeHTML(selectedPrompt.content)}</pre>`;
-        const originalPanelContent = `<div class="prompt-content-view">${originalContentHtml}</div>`;
+        // [수정] 헬퍼 함수를 사용하여 원본 콘텐츠 렌더링 (버그 수정)
+        const originalPanelContent = `<div class="prompt-content-view">${this._renderMarkdownContent(selectedPrompt.content)}</div>`;
 
         let mainViewHtml;
         if (selectedPrompt.aiDraftContent || isLoading) {
@@ -302,7 +312,8 @@ class UI {
     
     renderAIDraft(prompt) {
         if (!prompt.aiDraftContent) return '';
-        const draftHtml = APP_CONFIG.FEATURES.ENABLE_MARKDOWN_PARSING ? marked.parse(prompt.aiDraftContent) : `<pre>${sanitizeHTML(prompt.aiDraftContent)}</pre>`;
+        // [수정] 헬퍼 함수를 사용하여 AI 초안 렌더링 (코드 일관성 확보)
+        const draftHtml = this._renderMarkdownContent(prompt.aiDraftContent);
         return `<div class="prompt-content-view">${draftHtml}</div>
                 <div class="ai-draft-container"><button id="confirm-ai-draft-btn" class="sidebar-btn">이 버전으로 확정하기</button></div>`;
     }
@@ -360,5 +371,3 @@ class UI {
 }
 
 export const ui = new UI();
-
-// [수정] 파일 끝에 있던 불필요한 닫는 중괄호 '}'를 제거했습니다.
