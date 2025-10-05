@@ -25,16 +25,27 @@ src/js/utils.js: HTML 이스케이프 처리 등 프로젝트 전반에서 사�
 
 변경 기록 (최신순)
 
-2025-10-05 (v11)
-주요 변경사항: AI 기반 원본 프롬프트 자동 구조화 기능 추가
+2025-10-05 (v12)
+주요 변경사항: 신규 프롬프트 자동 제목/요약 생성 기능 추가
 
-수정 파일: src/config.js, src/js/services.js
+수정 파일: src/js/store.js
 
 변경 내용:
 
-AI 프롬프트 템플릿 추가 (config.js): 사용자의 원본 텍스트를 의미 구조에 맞게 마크다운으로 자동 변환하는 AUTO_FORMATTER_PROMPT_TEMPLATE을 추가했습니다.
+상태 관리 로직 강화 (store.js): 사용자가 '캡처 모드'에서 새 프롬프트를 저장할 때, AI가 자동으로 마크다운 변환뿐만 아니라 **제목과 요약까지 생성**하도록 `saveCapturedPrompt` 함수 로직을 수정했습니다. 이제 모든 프롬프트는 생성 즉시 일관된 형식(제목, 요약)을 갖추게 되어 사용자 경험이 크게 향상됩니다.
 
-API 서비스 로직 추가 (services.js): config.js에 추가된 템플릿을 사용하여 Gemini API를 호출하고, 구조화된 마크다운 텍스트를 반환하는 getAIAutoFormattedText(userInput) 함수를 새로 구현했습니다.
+2025-10-05 (v11)
+주요 변경사항: AI 기반 원본 프롬프트 자동 구조화 기능 추가
+
+수정 파일: src/config.js, src/js/services.js, src/js/store.js
+
+변경 내용:
+
+AI 프롬프트 템플릿 추가 (config.js): 사용자의 원본 텍스트를 의미 구조에 맞게 마크다운으로 자동 변환하는 `AUTO_FORMATTER_PROMPT_TEMPLATE`을 추가했습니다.
+
+API 서비스 로직 추가 (services.js): `config.js`에 추가된 템플릿을 사용하여 Gemini API를 호출하고, 구조화된 마크다운 텍스트를 반환하는 `getAIAutoFormattedText(userInput)` 함수를 새로 구현했습니다.
+
+상태 관리 로직 수정 (store.js): `saveCapturedPrompt`와 `updateSelectedPromptContent` 함수에 AI 자동 구조화 로직을 통합했습니다. 이제 사용자가 프롬프트를 저장하거나 수정하면, 백그라운드에서 AI가 자동으로 내용을 마크다운으로 변환하여 업데이트함으로써 사용자 경험을 향상시킵니다.
 
 2025-10-05 (v10)
 주요 변경사항: '새 프롬프트 생성' 버튼 클릭 오류 수정
@@ -43,7 +54,7 @@ API 서비스 로직 추가 (services.js): config.js에 추가된 템플릿을 �
 
 변경 내용:
 
-단축키 오류 수정 (main.js): setupGlobalShortcuts 함수 내에서 '새 프롬프트 생성' 단축키(Ctrl+N)가 store.createNewPrompt()를 호출하도록 수정했습니다. 기존 코드의 오타(newPromptButton -> newPromptBtn)를 바로잡아 버튼 클릭이 정상적으로 동작하도록 했습니다.
+단축키 오류 수정 (main.js): setupGlobalShortcuts 함수 내에서 '새 프롬프트 생성' 단축키(Ctrl+N)가 `store.createNewPrompt()`를 호출하도록 수정했습니다. 기존 코드의 오타(newPromptButton -> newPromptBtn)를 바로잡아 버튼 클릭이 정상적으로 동작하도록 했습니다.
 
 코드 정리 (main.js): 가독성 향상을 위해 불필요한 store 구독 관련 코드를 제거했습니다.
 
@@ -54,14 +65,14 @@ API 서비스 로직 추가 (services.js): config.js에 추가된 템플릿을 �
 
 변경 내용:
 
-DB 스키마 변경 (db.js): prompts 저장소에 title과 summary 필드를 추가하고, 데이터베이스 버전을 3으로 업그레이드했습니다.
+DB 스키마 변경 (db.js): prompts 저장소에 `title`과 `summary` 필드를 추가하고, 데이터베이스 버전을 3으로 업그레이드했습니다.
 
-AI 프롬프트 수정 (config.js): '전략가 AI'가 '추천 제목(title)', '핵심 요약(summary)', '전략 프롬프트(draft)'를 포함한 JSON 객체를 반환하도록 STRATEGIST_AI_PROMPT_TEMPLATE을 전면 수정했습니다.
+AI 프롬프트 수정 (config.js): '전략가 AI'가 '추천 제목(title)', '핵심 요약(summary)', '전략 프롬프트(draft)'를 포함한 JSON 객체를 반환하도록 `STRATEGIST_AI_PROMPT_TEMPLATE`을 전면 수정했습니다.
 
-API 서비스 로직 수정 (services.js): getAIStrategistDraft 함수가 AI로부터 받은 JSON 형식의 텍스트를 파싱하여 {title, summary, draft} 객체로 반환하도록 수정했습니다.
+API 서비스 로직 수정 (services.js): `getAIStrategistDraft` 함수가 AI로부터 받은 JSON 형식의 텍스트를 파싱하여 `{title, summary, draft}` 객체로 반환하도록 수정했습니다.
 
-상태 관리 로직 수정 (store.js): generateAIDraft 액션이 AI로부터 받은 title과 summary를 상태에 함께 저장하고, confirmAIDraft 액션이 이를 최종 확정하도록 로직을 수정했습니다.
+상태 관리 로직 수정 (store.js): `generateAIDraft` 액션이 AI로부터 받은 `title`과 `summary`를 상태에 함께 저장하고, `confirmAIDraft` 액션이 이를 최종 확정하도록 로직을 수정했습니다.
 
-UI 렌더링 로직 수정 (ui.js): 좌측 프롬프트 목록(prompt-card)이 p.title과 p.summary를 표시하도록 renderListView 함수를 수정했습니다. title이나 summary가 없는 구형 데이터를 위해 기존 방식(본문 첫 줄, 내용 일부)으로 표시하는 폴백(Fallback) 로직을 적용했습니다.
+UI 렌더링 로직 수정 (ui.js): 좌측 프롬프트 목록(prompt-card)이 `p.title`과 `p.summary`를 표시하도록 `renderListView` 함수를 수정했습니다. title이나 summary가 없는 구형 데이터를 위해 기존 방식(본문 첫 줄, 내용 일부)으로 표시하는 폴백(Fallback) 로직을 적용했습니다.
 
 (이전 변경 기록 생략)

@@ -53,29 +53,29 @@ class Store {
         this.setState({ viewMode: 'capture', selectedPromptId: null });
     }
     
-    // [수정] '캡처 모드'에서 입력된 프롬프트를 저장하고, AI 자동 구조화를 실행
+    // [수정] '캡처 모드'에서 프롬프트 저장 시, AI가 제목/요약/본문을 모두 자동 생성하도록 로직 강화
     async saveCapturedPrompt(content) {
         if (!content || content.trim() === '') {
             this.exitCaptureMode();
             return;
         }
-        
+
         const originalContent = content.trim();
-        
-        // 1. 먼저 사용자의 원본 텍스트로 임시 저장
-        const newPrompt = {
+
+        // 1. 먼저 사용자의 원본 텍스트로 임시 저장하여 ID 확보
+        const tempPrompt = {
             content: originalContent,
             aiDraftContent: '',
             categoryId: null,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            title: '',
-            summary: '',
+            title: 'AI 생성 중...', // 임시 제목
+            summary: 'AI가 프롬프트를 분석하고 있습니다...', // 임시 요약
         };
-        const newId = await db.addPrompt(newPrompt);
+        const newId = await db.addPrompt(tempPrompt);
         const allPrompts = await db.getAllPrompts();
         
-        // UI 즉시 업데이트
+        // 2. UI에 임시 프롬프트를 즉시 표시
         this.setState({
             prompts: allPrompts,
             selectedPromptId: newId,
@@ -83,16 +83,23 @@ class Store {
             viewMode: 'list',
         });
         
-        // 2. 백그라운드에서 AI 자동 구조화 실행
-        const formattedContent = await services.getAIAutoFormattedText(originalContent);
+        // 3. 백그라운드에서 '전략가 AI'를 호출하여 제목, 요약, 구조화된 본문(draft)을 한 번에 생성
+        const aiResult = await services.getAIStrategistDraft(originalContent);
         
-        // 3. AI가 변환한 텍스트로 프롬프트 업데이트
+        // 4. AI가 생성한 최종 결과로 프롬프트 업데이트
         const promptToUpdate = await db.getPrompt(newId);
         if (promptToUpdate) {
-            const updatedPrompt = { ...promptToUpdate, content: formattedContent, updatedAt: new Date().toISOString() };
-            await db.updatePrompt(updatedPrompt);
+            const finalPrompt = { 
+               ...promptToUpdate, 
+                content: aiResult.draft, // AI가 재구성한 본문으로 교체
+                title: aiResult.title,
+                summary: aiResult.summary,
+                updatedAt: new Date().toISOString() 
+            };
+            await db.updatePrompt(finalPrompt);
             const finalList = await db.getAllPrompts();
-            // 4. 최종적으로 UI 리프레시
+            
+            // 5. 최종적으로 UI 리프레시
             this.setState({ prompts: finalList });
         }
     }
@@ -102,32 +109,23 @@ class Store {
         this.setState({ viewMode: 'list' });
     }
 
-    // [수정] 프롬프트 내용 업데이트 후, AI 자동 구조화를 실행
+    // 프롬프트 내용 업데이트
     async updateSelectedPromptContent(newContent) {
-        const { selectedPromptId } = this.state;
+        const { selectedPromptId, prompts } = this.state;
         if (!selectedPromptId) return;
 
-        // 1. 사용자가 수정한 내용으로 먼저 DB 업데이트
-        const promptToUpdate = this.state.prompts.find(p => p.id === selectedPromptId);
+        const promptToUpdate = prompts.find(p => p.id === selectedPromptId);
         if (promptToUpdate) {
-            const tempUpdatedPrompt = {
+            // [수정] 명세서에 따라 원본 수정 시, 기존 AI 초안은 무효화되므로 초기화
+            const updatedPrompt = {
                ...promptToUpdate,
                 content: newContent,
-                aiDraftContent: '', // 원본 수정 시 AI 초안은 무효화
+                aiDraftContent: '', // 기존 AI 초안을 비워 유효하지 않음을 표시
                 updatedAt: new Date().toISOString(),
             };
-            await db.updatePrompt(tempUpdatedPrompt);
-            const intermediatePrompts = await db.getAllPrompts();
-            this.setState({ prompts: intermediatePrompts }); // UI에 수정 내용 즉시 반영
-            
-            // 2. 백그라운드에서 AI 자동 구조화 실행
-            const formattedContent = await services.getAIAutoFormattedText(newContent);
-            
-            // 3. 변환된 텍스트로 다시 DB 업데이트하고 UI 리프레시
-            const finalUpdatedPrompt = { ...tempUpdatedPrompt, content: formattedContent };
-            await db.updatePrompt(finalUpdatedPrompt);
-            const finalPrompts = await db.getAllPrompts();
-            this.setState({ prompts: finalPrompts });
+            await db.updatePrompt(updatedPrompt);
+            const allPrompts = await db.getAllPrompts();
+            this.setState({ prompts: allPrompts });
         }
     }
 
@@ -187,7 +185,7 @@ class Store {
     // [수정] 지능형 정리 모드 진입
     async enterSortMode() {
         const { prompts, categories } = this.state;
-        const unsortedPrompts = prompts.filter(p =>!p.categoryId);
+        const unsortedPrompts = prompts.filter(p => !p.categoryId);
         if (unsortedPrompts.length === 0) {
             alert("정리할 프롬프트가 없습니다.");
             return;
@@ -228,7 +226,7 @@ class Store {
             await db.updatePrompt(updatedPrompt);
             
             const allPrompts = await db.getAllPrompts();
-            const remainingUnsorted = allPrompts.filter(p =>!p.categoryId);
+            const remainingUnsorted = allPrompts.filter(p => !p.categoryId);
 
             this.setState({ prompts: allPrompts, isLoading: true });
 
