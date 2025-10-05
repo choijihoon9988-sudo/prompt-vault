@@ -230,7 +230,7 @@ body {
 .category-item.active {
     background-color: var(--bg-tertiary);
     font-weight: 600;
-    color: var(--text-primary);
+    color: var var(--text-primary);
 }
 
 /* 프롬프트 목록 */
@@ -398,7 +398,7 @@ body {
     margin-bottom: 0.5em;
     font-weight: 700;
 }
-/* 헤더별 폰트 크기를 부모 요소(1rem) 기준으로 재정의 */
+/* [신규] 헤더별 폰트 크기를 부모 요소(1rem) 기준으로 재정의하여 과도한 크기 방지 */
 .prompt-content-view h1 { font-size: 1.75em; }
 .prompt-content-view h2 { font-size: 1.5em; }
 .prompt-content-view h3 { font-size: 1.25em; }
