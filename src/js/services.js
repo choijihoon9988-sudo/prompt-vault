@@ -133,6 +133,49 @@ class Services {
             return { best: shuffled[0]?.name, second: shuffled[1]?.name };
         }
     }
+    
+    /**
+     * [신규] AI를 호출하여 원본 텍스트를 마크다운으로 자동 구조화합니다.
+     * @param {string} userInput - 사용자가 입력한 원본 텍스트
+     * @returns {Promise<string>} AI가 마크다운으로 변환한 텍스트
+     */
+    async getAIAutoFormattedText(userInput) {
+        const { API_KEY, MODEL_NAME, AUTO_FORMATTER_PROMPT_TEMPLATE } = APP_CONFIG.AI_SERVICE;
+
+        if (!API_KEY || API_KEY === "YOUR_API_KEY") {
+            console.error("API key not found.");
+            return userInput; // API 키가 없으면 원본 텍스트를 그대로 반환
+        }
+
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+        const fullPrompt = AUTO_FORMATTER_PROMPT_TEMPLATE.replace('{userInput}', userInput);
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.json();
+                throw new Error(`API 요청 실패: ${response.status} - ${errorBody.error?.message || '알 수 없는 오류'}`);
+            }
+
+            const data = await response.json();
+            const formattedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (!formattedText) {
+                throw new Error("API로부터 유효한 텍스트를 받지 못했습니다.");
+            }
+
+            return formattedText.trim();
+
+        } catch (error) {
+            console.error("AI Auto Formatting failed:", error);
+            return userInput; // 오류 발생 시 원본 텍스트를 그대로 반환
+        }
+    }
 }
 
 export const services = new Services();

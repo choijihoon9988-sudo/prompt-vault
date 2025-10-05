@@ -24,6 +24,18 @@ src/js/services.js: 외부 API 연동이나 복잡한 비즈니스 로직을 처
 src/js/utils.js: HTML 이스케이프 처리 등 프로젝트 전반에서 사용되는 유용한 헬퍼 함수들을 모아둔 모듈입니다.
 
 변경 기록 (최신순)
+
+2025-10-05 (v11)
+주요 변경사항: AI 기반 원본 프롬프트 자동 구조화 기능 추가
+
+수정 파일: src/config.js, src/js/services.js
+
+변경 내용:
+
+AI 프롬프트 템플릿 추가 (config.js): 사용자의 원본 텍스트를 의미 구조에 맞게 마크다운으로 자동 변환하는 AUTO_FORMATTER_PROMPT_TEMPLATE을 추가했습니다.
+
+API 서비스 로직 추가 (services.js): config.js에 추가된 템플릿을 사용하여 Gemini API를 호출하고, 구조화된 마크다운 텍스트를 반환하는 getAIAutoFormattedText(userInput) 함수를 새로 구현했습니다.
+
 2025-10-05 (v10)
 주요 변경사항: '새 프롬프트 생성' 버튼 클릭 오류 수정
 
