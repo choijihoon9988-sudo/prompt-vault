@@ -68,7 +68,7 @@ class Store {
             aiDraftContent: '',
             categoryId: null,
             createdAt: new Date().toISOString(),
-            updatedAt: new 'Date'().toISOString(),
+            updatedAt: new Date().toISOString(), // <<-- [수정] 'Date'의 따옴표를 제거하여 오류 수정
             title: 'AI 분석 중...',
             summary: '내용을 요약하고 제목을 생성하고 있습니다...',
         };
