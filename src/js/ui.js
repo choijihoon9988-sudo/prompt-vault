@@ -71,6 +71,15 @@ class UI {
         
         this.elements.promptDetailContainer.addEventListener('click', this.handleDetailClick.bind(this));
         
+        // [신규] Enter 키 입력 시 서식이 깨지는 오류를 방지하기 위한 이벤트 리스너
+        this.elements.promptDetailContainer.addEventListener('keydown', (e) => {
+            const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
+            if (contentView && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // 브라우저의 기본 동작(div 또는 p 태그 삽입)을 막습니다.
+                document.execCommand('insertHTML', false, '<br><br>'); // 수동으로 줄바꿈을 삽입하여 단락 구분을 만듭니다.
+            }
+        });
+        
         this.elements.promptDetailContainer.addEventListener('blur', (e) => {
             const contentView = e.target.closest('.prompt-content-view[contenteditable="true"]');
             if (contentView) {

@@ -378,15 +378,16 @@ body {
 }
 
 
+/* [수정] 폰트 크기 문제를 해결하기 위해 기본 크기 및 헤더별 크기 명시 */
 .prompt-content-view {
     line-height: 1.7;
+    font-size: 1rem; /* 기본 폰트 크기를 16px로 설정하여 일관성 유지 */
 }
 
 .original-panel .prompt-content-view {
     cursor: text;
 }
 
-/* [수정] 편집 시 나타나는 포커스 테두리를 제거합니다. */
 .prompt-content-view[contenteditable="true"]:focus {
     outline: none;
 }
@@ -397,6 +398,11 @@ body {
     margin-bottom: 0.5em;
     font-weight: 700;
 }
+/* 헤더별 폰트 크기를 부모 요소(1rem) 기준으로 재정의 */
+.prompt-content-view h1 { font-size: 1.75em; }
+.prompt-content-view h2 { font-size: 1.5em; }
+.prompt-content-view h3 { font-size: 1.25em; }
+
 .prompt-content-view p {
     margin-bottom: 1em;
 }
