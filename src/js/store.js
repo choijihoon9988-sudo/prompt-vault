@@ -53,7 +53,7 @@ class Store {
         this.setState({ viewMode: 'capture', selectedPromptId: null });
     }
     
-    // [수정] '캡처 모드'에서 프롬프트 저장 시, AI가 제목/요약/본문을 모두 자동 생성하도록 로직 강화
+    // [수정] 새 프롬프트 저장 시, 원본 내용은 보존하고 AI가 마크다운 변환, 제목/요약 생성만 하도록 수정
     async saveCapturedPrompt(content) {
         if (!content || content.trim() === '') {
             this.exitCaptureMode();
@@ -62,20 +62,20 @@ class Store {
 
         const originalContent = content.trim();
 
-        // 1. 먼저 사용자의 원본 텍스트로 임시 저장하여 ID 확보
+        // 1. 임시 프롬프트를 만들어 DB에 저장하고 ID 확보
         const tempPrompt = {
             content: originalContent,
             aiDraftContent: '',
             categoryId: null,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            title: 'AI 생성 중...', // 임시 제목
-            summary: 'AI가 프롬프트를 분석하고 있습니다...', // 임시 요약
+            updatedAt: new 'Date'().toISOString(),
+            title: 'AI 분석 중...',
+            summary: '내용을 요약하고 제목을 생성하고 있습니다...',
         };
         const newId = await db.addPrompt(tempPrompt);
         const allPrompts = await db.getAllPrompts();
         
-        // 2. UI에 임시 프롬프트를 즉시 표시
+        // 2. UI에 즉시 임시 상태를 표시하여 사용자에게 피드백 제공
         this.setState({
             prompts: allPrompts,
             selectedPromptId: newId,
@@ -83,23 +83,27 @@ class Store {
             viewMode: 'list',
         });
         
-        // 3. 백그라운드에서 '전략가 AI'를 호출하여 제목, 요약, 구조화된 본문(draft)을 한 번에 생성
-        const aiResult = await services.getAIStrategistDraft(originalContent);
+        // 3. (1단계 AI) 원본 내용을 보존하며 마크다운으로 자동 구조화
+        const formattedContent = await services.getAIAutoFormattedText(originalContent);
         
-        // 4. AI가 생성한 최종 결과로 프롬프트 업데이트
+        // 4. (2단계 AI) 구조화된 텍스트를 기반으로 제목과 요약만 생성
+        //    (getAIStrategistDraft는 내부적으로 본문도 만들지만, 우린 제목/요약만 사용)
+        const metadata = await services.getAIStrategistDraft(formattedContent);
+
+        // 5. 최종 결과로 프롬프트 업데이트 (content는 formattedContent로 교체)
         const promptToUpdate = await db.getPrompt(newId);
         if (promptToUpdate) {
             const finalPrompt = { 
                ...promptToUpdate, 
-                content: aiResult.draft, // AI가 재구성한 본문으로 교체
-                title: aiResult.title,
-                summary: aiResult.summary,
+                content: formattedContent, // AI가 재구성한 '구조'만 반영, 내용은 원본과 동일
+                title: metadata.title,
+                summary: metadata.summary,
                 updatedAt: new Date().toISOString() 
             };
             await db.updatePrompt(finalPrompt);
             const finalList = await db.getAllPrompts();
             
-            // 5. 최종적으로 UI 리프레시
+            // 6. 최종적으로 UI 리프레시
             this.setState({ prompts: finalList });
         }
     }
@@ -137,9 +141,7 @@ class Store {
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
             this.setState({ isLoading: true });
-            // [수정] services로부터 {title, summary, draft} 객체를 받음
             const result = await services.getAIStrategistDraft(prompt.content);
-            // [수정] 받은 객체로 prompt의 title, summary, aiDraftContent를 모두 업데이트
             const updatedPrompt = {
                 ...prompt, 
                 title: result.title,
@@ -158,12 +160,10 @@ class Store {
         if (!selectedPromptId) return;
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt && prompt.aiDraftContent) {
-            // [수정] content를 aiDraftContent로 업데이트하고, aiDraftContent는 비움
-            // 이 시점에 title과 summary는 generateAIDraft에서 이미 업데이트되었으므로 그대로 유지됨
             const updatedPrompt = {
                ...prompt,
                 content: prompt.aiDraftContent,
-                aiDraftContent: '', // AI 초안을 비워서 오른쪽 패널을 숨김
+                aiDraftContent: '',
                 updatedAt: new Date().toISOString(),
             };
             await db.updatePrompt(updatedPrompt);
@@ -182,7 +182,7 @@ class Store {
         this.setState({ prompts: allPrompts, selectedPromptId: null });
     }
 
-    // [수정] 지능형 정리 모드 진입
+    // 지능형 정리 모드 진입
     async enterSortMode() {
         const { prompts, categories } = this.state;
         const unsortedPrompts = prompts.filter(p => !p.categoryId);
@@ -207,14 +207,14 @@ class Store {
         this.setState({ viewMode: 'list', currentCategoryId: 'all', currentSortPrompt: null });
     }
     
-    // [신규] 분류 완료 후 잠시 메시지를 보여주고 복귀
+    // 분류 완료 후 잠시 메시지를 보여주고 복귀
     exitSortModeAfterDelay() {
         setTimeout(() => {
             this.exitSortMode();
-        }, 1500); // 1.5초 후 복귀
+        }, 1500);
     }
 
-    // [수정] 프롬프트 카테고리 지정 후 다음 프롬프트로 이동
+    // 프롬프트 카테고리 지정 후 다음 프롬프트로 이동
     async assignCategoryAndGoNext(promptId, categoryName) {
         const { prompts, categories } = this.state;
         const category = categories.find(c => c.name === categoryName);
