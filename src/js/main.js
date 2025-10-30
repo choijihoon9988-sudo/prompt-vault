@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '../config.js';
+import { APP_CONFIG } from '../../config.js'; // [FIX] 경로 수정
 import { db } from './db.js';
 import { store } from './store.js';
 import { ui } from './ui.js';

@@ -1,4 +1,4 @@
-import { APP_CONFIG } from "../config.js";
+import { APP_CONFIG } from "../../config.js"; // [FIX] 경로 수정
 
 // 외부 API 연동 또는 복잡한 비즈니스 로직을 처리하는 서비스 모듈
 class Services {
