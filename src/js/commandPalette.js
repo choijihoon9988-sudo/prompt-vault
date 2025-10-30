@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '../../config.js'; // [FIX] 경로 수정
+import { APP_CONFIG } from '../config.js'; // [FIX] 경로 수정
 
 // 커맨드 팔레트 UI 및 로직을 관리하는 모듈
 class CommandPalette {

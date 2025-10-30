@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '../../config.js'; // [FIX] 경로 수정
+import { APP_CONFIG } from '../config.js'; // [FIX] 경로 수정
 import { db } from './db.js';
 import { store } from './store.js';
 import { ui } from './ui.js';
@@ -20,7 +20,8 @@ class App {
             await db.init();
         } catch (error) {
             console.error("Database initialization failed:", error);
-            ui.showError("데이터베이스를 초기화할 수 없습니다. 앱을 재시작해주세요.");
+            // 'ui.showError'는 존재하지 않으므로 console.error로 대체
+            console.error("데이터베이스를 초기화할 수 없습니다. 앱을 재시작해주세요.");
             return;
         }
 

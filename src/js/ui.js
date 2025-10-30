@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '../../config.js'; // [FIX] 경로 수정
+import { APP_CONFIG } from '../config.js'; // [FIX] 경로 수정
 import { store } from './store.js';
 import { sanitizeHTML, getFirstLine } from './utils.js';
 
@@ -226,8 +226,6 @@ class UI {
                     <div class="loading-spinner"></div> AI가 초안을 생성하는 중...
                 </div>
             `;
-            // 상세 뷰의 다른 부분에 로딩 상태를 표시할 수도 있습니다.
-            // 예: this.elements.promptDetailContainer.querySelector('.detail-header-actions').style.opacity = '0.5';
         }
     }
 
@@ -248,7 +246,6 @@ class UI {
         }
 
         const currentPrompt = unsortedPrompts[0];
-        // AI가 추천할 카테고리 시뮬레이션 (랜덤 선택)
         const suggestedCategories = [...categories].sort(() => 0.5 - Math.random()).slice(0, APP_CONFIG.AI_SERVICE.SUGGESTED_CATEGORIES_COUNT);
 
         this.elements.promptList.innerHTML = `
@@ -273,11 +270,8 @@ class UI {
                 const currentPromptId = currentPrompt.id;
                 
                 if (categoryId === 'new') {
-                    // 새 카테고리 생성 로직 (store에 기능 추가 필요)
                     const newCategoryName = prompt("새 카테고리 이름을 입력하세요:");
                     if (newCategoryName && newCategoryName.trim() !== "") {
-                        // TODO: store.js에 새 카테고리를 추가하고 프롬프트에 할당하는 기능 구현 필요
-                        // 예: this.store.addNewCategoryAndAssign(newCategoryName, currentPromptId);
                         alert(`'${newCategoryName}' 카테고리 추가 기능은 store.js에 구현이 필요합니다.`);
                     }
                 } else {
