@@ -1,6 +1,6 @@
 import { db } from './db.js';
 import { services } from './services.js';
-import { ui } from './ui.js';
+// import { ui } from './ui.js'; // [FIX] 순환 참조를 일으키므로 제거
 
 // 애플리케이션의 모든 상태를 중앙에서 관리하는 'Store'
 // UI는 이 Store의 상태가 변경될 때만 업데이트됨 (단방향 데이터 흐름)
@@ -89,12 +89,13 @@ class Store {
 
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt) {
-            ui.showAIDraftLoading(); // 로딩 UI 표시
+            this.setState({ isLoading: true }); // [FIX] 로딩 상태 시작
+            // ui.showAIDraftLoading(); // [FIX] 직접 UI를 호출하는 대신 상태 변경
             const draft = await services.getAIStrategistDraft(prompt.content);
             const updatedPrompt = {...prompt, aiDraftContent: draft };
             await db.updatePrompt(updatedPrompt);
             const allPrompts = await db.getAllPrompts();
-            this.setState({ prompts: allPrompts });
+            this.setState({ prompts: allPrompts, isLoading: false }); // [FIX] 로딩 상태 종료
         }
     }
 
@@ -104,7 +105,17 @@ class Store {
         if (!selectedPromptId) return;
         const prompt = prompts.find(p => p.id === selectedPromptId);
         if (prompt && prompt.aiDraftContent) {
-            this.updateSelectedPromptContent(prompt.aiDraftContent);
+            // [FIX] updateSelectedPromptContent를 호출하는 대신,
+            // content를 aiDraftContent로 교체하고, aiDraftContent는 비움
+            const updatedPrompt = {
+               ...prompt,
+                content: prompt.aiDraftContent,
+                aiDraftContent: '', // 초안 내용 비우기
+                updatedAt: new Date().toISOString(),
+            };
+            await db.updatePrompt(updatedPrompt);
+            const allPrompts = await db.getAllPrompts();
+            this.setState({ prompts: allPrompts });
         }
     }
 
