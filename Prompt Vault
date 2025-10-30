@@ -1,4 +1,4 @@
-프로젝트 명: Prompt Vault
+프로젝트: Prompt Vault
 설명
 Prompt Vault는 사용자가 프롬프트를 효율적으로 생성, 관리 및 분류할 수 있도록 돕는 웹 애플리케이션입니다. AI 기반 초안 생성 및 카테고리 추천 기능을 통해 생산성을 높이는 것을 목표로 합니다. 모든 데이터는 브라우저의 IndexedDB에 안전하게 저장됩니다.
 
@@ -7,13 +7,13 @@ index.html: 애플리케이션의 전체적인 UI 구조를 정의하는 메인 
 
 src/css/style.css: 애플리케이션의 디자인과 레이아웃을 담당하는 스타일시트입니다.
 
-src/config.js: 앱의 제목, 테마, AI 시뮬레이션 설정 등 커스터마이징 가능한 값들을 모아둔 설정 파일입니다.
+src/config.js: 앱의 제목, 테마, AI 설정 등 커스터마이징 가능한 값들을 모아둔 설정 파일입니다.
 
 src/js/main.js: 애플리케이션의 시작점(Entry Point)입니다. DB 초기화, 데이터 로딩, 모듈 초기화 등 앱의 전반적인 실행 흐름을 관리합니다.
 
-src/js/db.js: IndexedDB와의 상호작용을 추상화하여 데이터 CRUD(생성, 읽기, 수정, 삭제)를 쉽게 처리할 수 있도록 돕는 모듈입니다.
+src/js/db.js: IndexedDB와의 상호작용을 추상화하여 데이터 CRUD를 쉽게 처리할 수 있도록 돕는 모듈입니다.
 
-src/js/store.js: 애플리케이션의 모든 상태(State)를 중앙에서 관리하는 단일 소스 저장소(Single Source of Truth)입니다. 상태 변경에 따라 UI가 반응적으로 업데이트됩니다.
+src/js/store.js: 애플리케이션의 모든 상태(State)를 중앙에서 관리하는 단일 소스 저장소(Single Source of Truth)입니다.
 
 src/js/ui.js: DOM 조작, 렌더링, 사용자 인터페이스 업데이트를 전담하는 모듈입니다. store의 상태 변화를 구독하여 화면을 다시 그립니다.
 
@@ -23,35 +23,120 @@ src/js/services.js: 외부 API 연동이나 복잡한 비즈니스 로직을 처
 
 src/js/utils.js: HTML 이스케이프 처리 등 프로젝트 전반에서 사용되는 유용한 헬퍼 함수들을 모아둔 모듈입니다.
 
-변경 기록
-2025-09-30 (v4)
-수정 파일: index.html
+변경 기록 (최신순)
+
+2025-10-30 (v18)
+주요 변경사항: AI 초안 생성 누락 버그 수정 및 API 중복 호출 최적화
+
+수정 파일: src/js/store.js
 
 변경 내용:
 
-HTML 구조 수정 (index.html): 앱 실행 시 JavaScript가 파비콘(favicon) 요소를 찾지 못해 발생하는 치명적인 오류를 해결하기 위해 <head> 태그 내에 <link rel="icon" href="#"> 태그를 추가했습니다. 이 오류는 앱 초기화를 중단시켜 모든 클릭 이벤트가 등록되지 않는 문제의 근본 원인이었습니다.
+AI 초안 누락 버그 수정 (store.js): 새 프롬프트 저장(`saveCapturedPrompt`) 시, AI가 '전략가 초안'(`draft`)을 생성했음에도 불구하고 데이터베이스에 저장하지 않던 치명적인 버그를 수정했습니다. 이제 `aiDraftContent: metadata.draft`가 `finalPrompt` 객체에 포함되어 정상적으로 저장됩니다.
 
-2025-09-30 (v3)
-수정 파일: src/js/db.js
+API 중복 호출 최적화 (store.js): '검색어로 즉시 생성'(`createPromptFromSearch`) 기능이 `saveCapturedPrompt` (초안 생성) 완료 후 `generateAIDraft` (초안 생성)를 또다시 호출하던 비효율적인 중복 로직을 제거했습니다. 이제 `saveCapturedPrompt`가 모든 AI 작업을 한 번에 처리하므로 API 호출이 1회로 최적화되었습니다.
 
-변경 내용:
+2025-10-30 (v17)
+주요 변경사항: P0: 지능형 탐색 및 즉시 생성 (Hybrid Search & Creation) 기능 구현
 
-DB 버전 업그레이드 (db.js): 사용자의 브라우저에 이전에 손상된 데이터베이스가 남아있을 가능성을 해결하기 위해 데이터베이스 버전을 2로 올렸습니다. 이 변경은 onupgradeneeded 이벤트를 다시 발생시켜 데이터베이스 구조를 안전하게 재설정하고, 앱이 정상적으로 시작되도록 보장합니다.
-
-2025-09-30 (v2)
-수정 파일: src/js/db.js, src/js/ui.js, src/js/main.js
+수정 파일: index.html, src/css/style.css, src/js/store.js, src/js/ui.js
 
 변경 내용:
 
-DB 초기화 안정화 (db.js): IndexedDB 최초 생성 시 기본 카테고리를 추가하는 로직을 더 안정적인 방식으로 변경하여, 앱 시작 오류 가능성을 제거했습니다.
+지능형 검색창 추가 (index.html, style.css): 프롬프트 목록 상단(.list-header)에 검색창(prompt-search-input)을 추가하고 관련 스타일을 적용했습니다.
 
-상태 관리 리팩토링 (ui.js): AI 초안 로딩 상태를 UI 모듈 내부에서 자체적으로 관리하던 방식에서 벗어나, 중앙 저장소(store)의 isLoading 상태를 직접 참조하도록 통일했습니다.
+실시간 상태 연동 (store.js): 사용자의 검색어 입력을 실시간으로 관리하기 위해 state에 searchQuery: ''를 추가하고, 이를 업데이트하는 setSearchQuery(query) 액션을 구현했습니다.
 
-중복 코드 제거 (main.js): ui.js의 리팩토링에 따라 불필요해진 store 구독 코드를 main.js에서 제거했습니다.
+실시간 필터링 (ui.js): 사용자가 검색창에 타이핑할 때마다, 현재 선택된 카테고리 내에서 프롬프트 내용(content)을 기준으로 즉시 필터링하여 결과를 renderListView에 표시하도록 로직을 수정했습니다.
 
-2025-09-30 (v1)
+'실패 경험 복구' (ui.js): 검색 결과가 0개일 때, "검색 결과 없음" 메시지와 함께 사용자의 검색어를 기반으로 새 프롬프트를 즉시 생성할 수 있는 '지능형 제안' 버튼(create-from-search)을 표시하도록 renderSearchFailureRecovery 함수를 추가했습니다.
+
+'즉시 생성' 및 AI 자동 호출 (store.js, ui.js): '지능형 제안' 버튼 클릭 시, 검색어를 내용으로 하는 새 프롬프트를 즉시 생성(createPromptFromSearch)하고, 이어서 '전략가 AI'(generateAIDraft)를 자동으로 호출하여 사용자 의도를 AI 초안으로 즉시 생성하는 '마법' 같은 경험을 구현했습니다. 이를 위해 saveCapturedPrompt가 생성된 ID를 반환하도록 수정했습니다.
+
+2025-10-05 (v16)
+주요 변경사항: 신규 프롬프트 등록 시 폰트 크기가 비정상적으로 커지는 문제 해결
+
+수정 파일: src/css/style.css
+
+변경 내용:
+
+CSS 스타일 수정 (style.css): 프롬프트 상세 보기 영역(`.prompt-content-view`)에 기본 폰트 크기(font-size: 1rem)를 명시적으로 설정했습니다. 또한, 마크다운으로 변환된 헤더(h1, h2, h3) 태그들의 폰트 크기를 부모 요소에 비례하도록 재정의하여, 브라우저 기본값으로 인해 폰트가 과도하게 커지는 문제를 해결하고 디자인 일관성을 확보했습니다.
+
+2025-10-05 (v15)
+주요 변경사항: 프롬프트 편집기 Enter 키 입력 오류 수정
+
 수정 파일: src/js/ui.js
 
 변경 내용:
 
-이벤트 핸들러 리팩토링 및 이벤트 위임 적용: 렌더링 시 이벤트 리스너가 중복으로 등록되던 문제를 해결했습니다.
+편집기 안정성 강화 (ui.js): 프롬프트 내용을 편집할 때 Enter 키를 누르면 글자가 비정상적으로 커지던 치명적인 오류를 수정했습니다. 이제 Enter 키는 브라우저의 기본 동작 대신 수동으로 줄 바꿈(`<br>`)을 삽입하도록 하여, 사용자가 의도치 않은 서식 변경 없이 안정적으로 단락을 나눌 수 있게 되었습니다.
+
+2025-10-05 (v14)
+주요 변경사항: 새 프롬프트 저장 오류 긴급 수정
+
+수정 파일: src/js/store.js
+
+변경 내용:
+
+치명적 오류 수정 (store.js): '캡처 모드'에서 새 프롬프트를 저장할 때, 날짜 생성 코드의 오타(`new 'Date'()`)로 인해 앱이 중단되던 치명적인 오류를 수정했습니다. 이제 사용자가 입력한 아이디어가 문제없이 안전하게 저장됩니다.
+
+2025-10-05 (v13)
+주요 변경사항: AI 처리 시 원본 프롬프트 내용 보존
+
+수정 파일: src/js/store.js
+
+변경 내용:
+
+AI 처리 로직 수정 (store.js): 새 프롬프트 저장(`saveCapturedPrompt`) 시, AI가 원본 내용을 임의로 '재창조'하던 문제를 해결했습니다. 이제 AI는 **사용자의 원본을 절대 변경하지 않고**, (1) 마크다운으로 자동 구조화하여 가독성을 높이고, (2) 해당 내용을 기반으로 제목과 요약만 생성하도록 역할이 명확히 분리되었습니다. 이를 통해 사용자의 아이디어를 그대로 보존하면서 AI의 편의 기능만 더할 수 있게 되었습니다.
+
+2025-10-05 (v12)
+주요 변경사항: 신규 프롬프트 자동 제목/요약 생성 기능 추가
+
+수정 파일: src/js/store.js
+
+변경 내용:
+
+상태 관리 로직 강화 (store.js): 사용자가 '캡처 모드'에서 새 프롬프트를 저장할 때, AI가 자동으로 마크다운 변환뿐만 아니라 **제목과 요약까지 생성**하도록 `saveCapturedPrompt` 함수 로직을 수정했습니다. 이제 모든 프롬프트는 생성 즉시 일관된 형식(제목, 요약)을 갖추게 되어 사용자 경험이 크게 향상됩니다.
+
+2025-10-05 (v11)
+주요 변경사항: AI 기반 원본 프롬프트 자동 구조화 기능 추가
+
+수정 파일: src/config.js, src/js/services.js, src/js/store.js
+
+변경 내용:
+
+AI 프롬프트 템플릿 추가 (config.js): 사용자의 원본 텍스트를 의미 구조에 맞게 마크다운으로 자동 변환하는 `AUTO_FORMATTER_PROMPT_TEMPLATE`을 추가했습니다.
+
+API 서비스 로직 추가 (services.js): `config.js`에 추가된 템플릿을 사용하여 Gemini API를 호출하고, 구조화된 마크다운 텍스트를 반환하는 `getAIAutoFormattedText(userInput)` 함수를 새로 구현했습니다.
+
+상태 관리 로직 수정 (store.js): `saveCapturedPrompt`와 `updateSelectedPromptContent` 함수에 AI 자동 구조화 로직을 통합했습니다. 이제 사용자가 프롬프트를 저장하거나 수정하면, 백그라운드에서 AI가 자동으로 내용을 마크다운으로 변환하여 업데이트함으로써 사용자 경험을 향상시킵니다.
+
+2025-10-05 (v10)
+주요 변경사항: '새 프롬프트 생성' 버튼 클릭 오류 수정
+
+수정 파일: src/js/main.js
+
+변경 내용:
+
+단축키 오류 수정 (main.js): setupGlobalShortcuts 함수 내에서 '새 프롬프트 생성' 단축키(Ctrl+N)가 `store.createNewPrompt()`를 호출하도록 수정했습니다. 기존 코드의 오타(newPromptButton -> newPromptBtn)를 바로잡아 버튼 클릭이 정상적으로 동작하도록 했습니다.
+
+코드 정리 (main.js): 가독성 향상을 위해 불필요한 store 구독 관련 코드를 제거했습니다.
+
+2025-10-05 (v9)
+주요 변경사항: AI 기반 자동 제목 및 요약 기능 (Cognitive-Load Reducer) 구현
+
+수정 파일: src/js/db.js, src/config.js, src/js/services.js, src/js/store.js, src/js/ui.js
+
+변경 내용:
+
+DB 스키마 변경 (db.js): prompts 저장소에 `title`과 `summary` 필드를 추가하고, 데이터베이스 버전을 3으로 업그레이드했습니다.
+
+AI 프롬프트 수정 (config.js): '전략가 AI'가 '추천 제목(title)', '핵심 요약(summary)', '전략 프롬프트(draft)'를 포함한 JSON 객체를 반환하도록 `STRATEGIST_AI_PROMPT_TEMPLATE`을 전면 수정했습니다.
+
+API 서비스 로직 수정 (services.js): `getAIStrategistDraft` 함수가 AI로부터 받은 JSON 형식의 텍스트를 파싱하여 `{title, summary, draft}` 객체로 반환하도록 수정했습니다.
+
+상태 관리 로직 수정 (store.js): `generateAIDraft` 액션이 AI로부터 받은 `title`과 `summary`를 상태에 함께 저장하고, `confirmAIDraft` 액션이 이를 최종 확정하도록 로직을 수정했습니다.
+
+UI 렌더링 로직 수정 (ui.js): 좌측 프롬프트 목록(prompt-card)이 `p.title`과 `p.summary`를 표시하도록 `renderListView` 함수를 수정했습니다. title이나 summary가 없는 구형 데이터를 위해 기존 방식(본문 첫 줄, 내용 일부)으로 표시하는 폴백(Fallback) 로직을 적용했습니다.
+
+(이전 변경 기록 생략)

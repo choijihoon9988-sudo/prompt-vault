@@ -93,8 +93,7 @@ class Store {
         // 3. (1단계 AI) 원본 내용을 보존하며 마크다운으로 자동 구조화
         const formattedContent = await services.getAIAutoFormattedText(originalContent);
         
-        // 4. (2단계 AI) 구조화된 텍스트를 기반으로 제목과 요약만 생성
-        //    (getAIStrategistDraft는 내부적으로 본문도 만들지만, 우린 제목/요약만 사용)
+        // 4. (2단계 AI) 구조화된 텍스트를 기반으로 제목, 요약, *초안* 생성
         const metadata = await services.getAIStrategistDraft(formattedContent);
 
         // 5. 최종 결과로 프롬프트 업데이트 (content는 formattedContent로 교체)
@@ -102,9 +101,10 @@ class Store {
         if (promptToUpdate) {
             const finalPrompt = { 
                ...promptToUpdate, 
-                content: formattedContent, // AI가 재구성한 '구조'만 반영, 내용은 원본과 동일
+                content: formattedContent, // AI가 재구성한 '구조'만 반영
                 title: metadata.title,
                 summary: metadata.summary,
+                aiDraftContent: metadata.draft, // [수정] AI 초안(draft)도 함께 저장
                 updatedAt: new Date().toISOString() 
             };
             await db.updatePrompt(finalPrompt);
@@ -119,17 +119,13 @@ class Store {
 
     // [신규] P0: 검색 실패 시 즉시 생성 및 AI 호출
     async createPromptFromSearch(query) {
-        // 1. 기존 '캡처 저장' 로직을 재활용하여 프롬프트를 생성하고 ID를 받음
-        // (saveCapturedPrompt 내부에서 1차 setState가 실행되어 상세 뷰로 이동됨)
-        const newId = await this.saveCapturedPrompt(query);
+        // 1. [수정] 'saveCapturedPrompt'가 AI 초안 생성까지 모두 처리하므로,
+        //    해당 함수를 호출하는 것만으로 충분합니다.
+        //    'generateAIDraft()'를 중복 호출할 필요가 없습니다.
+        await this.saveCapturedPrompt(query);
         
-        if (newId) {
-            // 2. 프롬프트 생성이 완료된 직후, 즉시 '전략가 AI'를 호출
-            // (saveCapturedPrompt가 백그라운드에서 제목/요약을 생성하는 동안
-            //  여기서는 '전략가 초안'을 생성하여 덮어쓰거나 보강할 수 있음.
-            //  현재 명세상 generateAIDraft가 적합함)
-            this.generateAIDraft();
-        }
+        // 2. saveCapturedPrompt가 내부적으로 setState를 호출하여
+        //    상세 뷰로 이동하고 AI 초안을 포함한 UI를 렌더링합니다.
     }
 
     // '캡처 모드' 취소
