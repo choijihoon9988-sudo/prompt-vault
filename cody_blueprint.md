@@ -25,6 +25,23 @@ src/js/utils.js: HTML 이스케이프 처리 등 프로젝트 전반에서 사�
 
 변경 기록 (최신순)
 
+2025-10-30 (v17)
+주요 변경사항: P0: 지능형 탐색 및 즉시 생성 (Hybrid Search & Creation) 기능 구현
+
+수정 파일: index.html, src/css/style.css, src/js/store.js, src/js/ui.js
+
+변경 내용:
+
+지능형 검색창 추가 (index.html, style.css): 프롬프트 목록 상단(.list-header)에 검색창(prompt-search-input)을 추가하고 관련 스타일을 적용했습니다.
+
+실시간 상태 연동 (store.js): 사용자의 검색어 입력을 실시간으로 관리하기 위해 state에 searchQuery: ''를 추가하고, 이를 업데이트하는 setSearchQuery(query) 액션을 구현했습니다.
+
+실시간 필터링 (ui.js): 사용자가 검색창에 타이핑할 때마다, 현재 선택된 카테고리 내에서 프롬프트 내용(content)을 기준으로 즉시 필터링하여 결과를 renderListView에 표시하도록 로직을 수정했습니다.
+
+'실패 경험 복구' (ui.js): 검색 결과가 0개일 때, "검색 결과 없음" 메시지와 함께 사용자의 검색어를 기반으로 새 프롬프트를 즉시 생성할 수 있는 '지능형 제안' 버튼(create-from-search)을 표시하도록 renderSearchFailureRecovery 함수를 추가했습니다.
+
+'즉시 생성' 및 AI 자동 호출 (store.js, ui.js): '지능형 제안' 버튼 클릭 시, 검색어를 내용으로 하는 새 프롬프트를 즉시 생성(createPromptFromSearch)하고, 이어서 '전략가 AI'(generateAIDraft)를 자동으로 호출하여 사용자 의도를 AI 초안으로 즉시 생성하는 '마법' 같은 경험을 구현했습니다. 이를 위해 saveCapturedPrompt가 생성된 ID를 반환하도록 수정했습니다.
+
 2025-10-05 (v16)
 주요 변경사항: 신규 프롬프트 등록 시 폰트 크기가 비정상적으로 커지는 문제 해결
 

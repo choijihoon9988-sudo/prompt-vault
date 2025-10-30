@@ -13,6 +13,7 @@ class Store {
             selectedPromptId: null,
             viewMode: 'list', // 'list' | 'sort' | 'capture'
             isLoading: false,
+            searchQuery: '', // [신규] P0: 지능형 탐색을 위한 검색어 상태
             // [신규] 지능형 정리 모드를 위한 상태
             currentSortPrompt: null, // { prompt: Object, suggestions: { best: string, second: string } }
         };
@@ -47,17 +48,23 @@ class Store {
     selectPrompt(promptId) {
         this.setState({ selectedPromptId: promptId, viewMode: 'list' });
     }
+    
+    // [신규] P0: 검색어 업데이트
+    setSearchQuery(query) {
+        // 검색 시 상세 뷰는 닫고 목록에 집중
+        this.setState({ searchQuery: query, selectedPromptId: null });
+    }
 
     // '새 프롬프트 생성' 시, '캡처 모드'로 진입
     createNewPrompt() {
         this.setState({ viewMode: 'capture', selectedPromptId: null });
     }
     
-    // [수정] 새 프롬프트 저장 시, 원본 내용은 보존하고 AI가 마크다운 변환, 제목/요약 생성만 하도록 수정
+    // [수정] 새 프롬프트 저장 시, 생성된 ID를 반환하도록 수정
     async saveCapturedPrompt(content) {
         if (!content || content.trim() === '') {
             this.exitCaptureMode();
-            return;
+            return null;
         }
 
         const originalContent = content.trim();
@@ -68,7 +75,7 @@ class Store {
             aiDraftContent: '',
             categoryId: null,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(), // <<-- [수정] 'Date'의 따옴표를 제거하여 오류 수정
+            updatedAt: new Date().toISOString(),
             title: 'AI 분석 중...',
             summary: '내용을 요약하고 제목을 생성하고 있습니다...',
         };
@@ -105,6 +112,23 @@ class Store {
             
             // 6. 최종적으로 UI 리프레시
             this.setState({ prompts: finalList });
+        }
+        
+        return newId; // [수정] 생성된 ID 반환
+    }
+
+    // [신규] P0: 검색 실패 시 즉시 생성 및 AI 호출
+    async createPromptFromSearch(query) {
+        // 1. 기존 '캡처 저장' 로직을 재활용하여 프롬프트를 생성하고 ID를 받음
+        // (saveCapturedPrompt 내부에서 1차 setState가 실행되어 상세 뷰로 이동됨)
+        const newId = await this.saveCapturedPrompt(query);
+        
+        if (newId) {
+            // 2. 프롬프트 생성이 완료된 직후, 즉시 '전략가 AI'를 호출
+            // (saveCapturedPrompt가 백그라운드에서 제목/요약을 생성하는 동안
+            //  여기서는 '전략가 초안'을 생성하여 덮어쓰거나 보강할 수 있음.
+            //  현재 명세상 generateAIDraft가 적합함)
+            this.generateAIDraft();
         }
     }
 
@@ -191,7 +215,7 @@ class Store {
             return;
         }
 
-        this.setState({ viewMode: 'sort', selectedPromptId: null, isLoading: true });
+        this.setState({ viewMode: 'sort', selectedPromptId: null, isLoading: true, searchQuery: '' }); // [수정] 정리 모드 진입 시 검색어 초기화
         
         const firstPrompt = unsortedPrompts[0];
         const suggestions = await services.getCategorySuggestions(firstPrompt.content, categories);

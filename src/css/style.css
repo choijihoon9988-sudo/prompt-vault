@@ -247,6 +247,24 @@ body {
     font-size: 0.875rem;
     color: var(--text-secondary);
 }
+/* [신규] P0: 지능형 검색창 스타일 */
+#prompt-search-input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    margin-top: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: var(--transition-fast);
+}
+#prompt-search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
 .prompt-list {
     overflow-y: auto;
     padding: 0.5rem;
@@ -282,6 +300,29 @@ body {
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+/* [신규] P0: 검색 실패 복구 UI 스타일 */
+.search-failure-recovery {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+#create-from-search {
+    background-color: var(--primary-color);
+    border: none;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-weight: 600;
+    margin-top: 1rem;
+    display: inline-block;
+}
+#create-from-search:hover {
+    background-color: var(--primary-color-hover);
+}
+
 
 /* 프롬프트 상세 뷰 */
 .placeholder {
