@@ -21,6 +21,7 @@ class UI {
             unsortedCountBadge: document.getElementById('unsorted-count-badge'),
             currentCategoryTitle: document.getElementById('current-category-title'),
             promptCount: document.getElementById('prompt-count'),
+            promptSearchInput: document.getElementById('prompt-search-input'), // [신규] v18: 검색창 요소 캐시
             newPromptBtn: document.getElementById('new-prompt-btn'),
             sortModeBtn: document.getElementById('sort-mode-btn'),
         };
@@ -61,7 +62,22 @@ class UI {
             if (button) this.store.selectCategory(button.dataset.id === 'all' || button.dataset.id === 'unsorted' ? button.dataset.id : parseInt(button.dataset.id));
         });
 
+        // [신규] v18: P0: 지능형 검색창 이벤트 리스너
+        this.elements.promptSearchInput.addEventListener('input', (e) => {
+            this.store.setSearchQuery(e.target.value);
+        });
+
+        // [수정] v18: P0: '즉시 생성' 버튼 처리를 위해 이벤트 위임 방식 수정
         this.elements.promptList.addEventListener('click', (e) => {
+            // '즉시 생성' 버튼 클릭 처리
+            const createBtn = e.target.closest('#create-from-search');
+            if (createBtn) {
+                const query = createBtn.dataset.query;
+                this.store.createPromptFromSearch(query);
+                return; // 프롬프트 카드 선택 로직을 중단
+            }
+
+            // 기존 프롬프트 카드 클릭 로직
             const promptCard = e.target.closest('.prompt-card[data-id]');
             if (promptCard) {
                 const promptId = parseInt(promptCard.dataset.id);
@@ -246,35 +262,78 @@ class UI {
         return `<pre>${sanitizeHTML(content)}</pre>`;
     }
 
+    // [수정] v18: P0: 검색 필터링 및 '실패 복구' 로직 추가
     renderListView(state) {
-        const { prompts, categories, currentCategoryId, selectedPromptId } = state;
-        let filteredPrompts = [];
+        const { prompts, categories, currentCategoryId, selectedPromptId, searchQuery } = state;
+        
+        let categoryFilteredPrompts = [];
         let categoryTitle = "";
+
+        // 1. 카테고리 기준으로 1차 필터링
         if (currentCategoryId === 'all') {
-            filteredPrompts = prompts;
+            categoryFilteredPrompts = prompts;
             categoryTitle = "모든 프롬프트";
         } else if (currentCategoryId === 'unsorted') {
-            filteredPrompts = prompts.filter(p => !p.categoryId);
+            categoryFilteredPrompts = prompts.filter(p => !p.categoryId);
             categoryTitle = "미분류";
         } else {
-            filteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
+            categoryFilteredPrompts = prompts.filter(p => p.categoryId === currentCategoryId);
             const cat = categories.find(c => c.id === currentCategoryId);
             categoryTitle = cat ? cat.name : "알 수 없는 카테고리";
+        }
+
+        // 2. [신규] v18: 검색 쿼리를 기반으로 2차 필터링
+        const lowerQuery = searchQuery.toLowerCase();
+        let filteredPrompts = [];
+        if (lowerQuery) {
+            filteredPrompts = categoryFilteredPrompts.filter(p => 
+                (p.title && p.title.toLowerCase().includes(lowerQuery)) ||
+                (p.summary && p.summary.toLowerCase().includes(lowerQuery)) ||
+                (p.content && p.content.toLowerCase().includes(lowerQuery))
+            );
+        } else {
+            filteredPrompts = categoryFilteredPrompts;
         }
 
         this.elements.currentCategoryTitle.textContent = sanitizeHTML(categoryTitle);
         this.elements.promptCount.textContent = `${filteredPrompts.length}개`;
         
-        this.elements.promptList.innerHTML = (filteredPrompts.length === 0 && currentCategoryId !== 'all' && currentCategoryId !== 'unsorted')
-            ? `<p class="placeholder" style="padding: 1rem;">비어있는 카테고리입니다.</p>`
-            : filteredPrompts.map(p => `
+        // 3. [수정] v18: 필터링 결과에 따라 UI 분기 처리
+        if (filteredPrompts.length === 0) {
+            if (searchQuery) {
+                // 검색 결과가 0개일 때 (실패 복구 UI)
+                this.renderSearchFailureRecovery(searchQuery);
+            } else {
+                // 검색어가 없고, 목록이 0개일 때 (플레이스홀더)
+                const placeholderText = (currentCategoryId === 'all' || currentCategoryId === 'unsorted')
+                    ? '프롬프트가 없습니다.'
+                    : '비어있는 카테고리입니다.';
+                this.elements.promptList.innerHTML = `<p class="placeholder" style="padding: 1rem;">${placeholderText}</p>`;
+            }
+        } else {
+            // 정상적인 프롬프트 목록 렌더링
+            this.elements.promptList.innerHTML = filteredPrompts.map(p => `
                 <div class="prompt-card ${p.id === selectedPromptId ? 'active' : ''}" data-id="${p.id}">
                     <div class="prompt-card-title">${sanitizeHTML(p.title || getFirstLine(p.content))}</div>
                     <div class="prompt-card-preview">${sanitizeHTML(p.summary || p.content)}</div>
                 </div>
             `).join('');
+        }
         
         this.renderDetailView(state);
+    }
+
+    // [신규] v18: P0: 검색 실패 복구 UI 렌더링 (v17 누락분)
+    renderSearchFailureRecovery(searchQuery) {
+        // style.css에 .search-failure-recovery 및 #create-from-search 스타일이 정의되어 있음
+        const sanitizedQuery = sanitizeHTML(searchQuery);
+        this.elements.promptList.innerHTML = `
+            <div class="search-failure-recovery">
+                <p>"${sanitizedQuery}"에 대한 검색 결과가 없습니다.</p>
+                <button id="create-from-search" data-query="${sanitizedQuery}">
+                    ✨ "${sanitizedQuery}"로 새 프롬프트 즉시 생성
+                </button>
+            </div>`;
     }
 
     renderDetailView(state) {
